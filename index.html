@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#155b42">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MAXONE Sales Record</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="src/app.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow">MAXONE · MOBILE SALES</div>
+    <div class="header-row"><h1>Sales Record</h1><button type="button" id="accountButton" class="account-button">เข้าสู่ระบบ / ซิงก์</button></div>
+    <span id="status">● บันทึกในเครื่อง</span>
+  </header>
+  <nav>
+    <button class="tab active" data-tab="entry">บันทึกยอดขาย</button>
+    <button class="tab" data-tab="history">รายงานย้อนหลัง</button>
+  </nav>
+  <main>
+    <section id="entry" class="panel active">
+      <form id="form">
+        <input type="hidden" id="rid">
+        <h2>01 · ข้อมูลการขาย</h2>
+        <div class="units"><div><label for="date">วันที่ทำรายการ *</label><input id="date" type="date" required></div><div><label for="time">เวลาทำรายการ *</label><input id="time" type="time" required></div></div>
+        <label for="shop">ชื่อร้าน / จังหวัด *</label>
+        <div class="inline"><select id="shop" required><option value="">เลือกร้านค้า</option></select><button type="button" id="addShop" aria-label="เพิ่มร้านค้า">+</button></div>
+        <h2>02 · Stock กลางตั้งต้น</h2>
+        <p class="hint">ยอดคงเหลือจากรายการก่อนหน้าทั้งหมดใน Stock กลาง ไม่แยกตามร้านค้า</p>
+        <div class="units">
+          <div><label>ลัง</label><input id="oc" type="number" readonly value="0"></div>
+          <div><label>แพ็ค</label><input id="op" type="number" readonly value="0"></div>
+          <div><label>ขวด</label><input id="ob" type="number" readonly value="0"></div>
+        </div>
+        <p id="firstNote" class="hint hidden">ยังไม่มีรายการก่อนหน้าใน Stock กลาง กรุณากำหนด Stock ตั้งต้นเริ่มต้น</p>
+        <div id="seedBox" class="units hidden">
+          <div><label>ตั้งต้น ลัง</label><input id="sc" type="number" min="0" step="1" value="0"></div>
+          <div><label>ตั้งต้น แพ็ค</label><input id="sp" type="number" min="0" step="1" value="0"></div>
+          <div><label>ตั้งต้น ขวด</label><input id="sb" type="number" min="0" step="1" value="0"></div>
+        </div>
+        <label for="expiry">วันหมดอายุ</label><input id="expiry" type="date">
+        <h3>เติมสินค้าเข้า Stock กลาง</h3><p class="hint">การเติมจะเพิ่มยอดคงเหลือของโกดัง ณ เวลาทำรายการนี้</p>
+        <div class="units">
+          <div><label>ลัง</label><input id="fc" type="number" min="0" step="1" value="0"></div>
+          <div><label>แพ็ค</label><input id="fp" type="number" min="0" step="1" value="0"></div>
+          <div><label>ขวด</label><input id="fb" type="number" min="0" step="1" value="0"></div>
+        </div>
+        <h2>03 · Stock กลางคงเหลือ</h2>
+        <div class="balance">
+          <div class="units">
+            <div><label>ลัง</label><output id="cc">0</output></div>
+            <div><label>แพ็ค</label><output id="cp">0</output></div>
+            <div><label>ขวด</label><output id="cb">0</output></div>
+          </div>
+          <button type="button" id="editBalance" class="link">แก้ไขยอดสต๊อกคงเหลือ</button>
+          <div id="overrideBox" class="units hidden">
+            <div><label>ลัง</label><input id="xc" type="number" min="0" step="1" value="0"></div>
+            <div><label>แพ็ค</label><input id="xp" type="number" min="0" step="1" value="0"></div>
+            <div><label>ขวด</label><input id="xb" type="number" min="0" step="1" value="0"></div>
+          </div>
+          <p id="delta" class="hint"></p>
+        </div>
+        <h2>04 · ยอดขาย</h2>
+        <div class="units">
+          <div><label>ลัง</label><input id="vc" type="number" min="0" step="1" value="0"></div>
+          <div><label>แพ็ค</label><input id="vp" type="number" min="0" step="1" value="0"></div>
+          <div><label>ขวด</label><input id="vb" type="number" min="0" step="1" value="0"></div>
+        </div>
+        <h2>05 · ตรวจสอบก่อนบันทึก</h2>
+        <div class="review" id="review"></div>
+        <p id="error" class="error hidden"></p>
+        <div class="actions"><button type="button" id="reset" class="secondary">ล้างฟอร์ม</button><button type="submit" class="primary" id="save">บันทึกยอดขาย</button></div>
+      </form>
+    </section>
+    <section id="history" class="panel">
+      <h2>01 · รายการย้อนหลัง</h2>
+      <p class="hint" id="range">ย้อนหลัง 60 วัน</p>
+      <input id="search" type="search" placeholder="ค้นหาชื่อร้าน">
+      <button type="button" id="allHistory" class="secondary">ดูรายการย้อนหลังทั้งหมด</button>
+      <div id="list"></div>
+      <h2>02 · ส่งออกรายงาน</h2>
+      <label for="from">วันที่เริ่มต้น</label><input id="from" type="date">
+      <label for="to">วันที่สิ้นสุด</label><input id="to" type="date">
+      <button type="button" id="week" class="link">ใช้ช่วงวันจันทร์ถึงวันเสาร์ที่ผ่านมา</button>
+      <button type="button" id="export" class="primary wide">ดาวน์โหลด Excel (.xlsx)</button>
+      <p class="hint">รายงานหลักคงคอลัมน์ A-L และมีชีตรายละเอียดการเติม/ปรับสต๊อก</p>
+    </section>
+  </main>
+  <footer>Stock กลางของ MAXONE · ร้านค้าเป็นสถานที่ขาย ไม่ใช่เจ้าของสต๊อก · ข้อมูลบันทึกในอุปกรณ์ก่อน</footer>
+</div>
+<div id="authModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="modal-card">
+    <div class="modal-head"><h2 id="authTitle">บัญชี MAXONE</h2><button type="button" id="closeAuth" class="close-button" aria-label="ปิด">×</button></div>
+    <p id="accountEmail" class="hint">ยังไม่ได้เชื่อมต่อ Cloud</p>
+    <div id="authActions">
+      <label for="authEmail">อีเมล</label><input id="authEmail" type="email" autocomplete="username" placeholder="name@example.com">
+      <label for="authPassword">รหัสผ่าน (อย่างน้อย 8 ตัวอักษร)</label><input id="authPassword" type="password" autocomplete="current-password" minlength="8">
+      <div class="actions"><button type="button" id="signIn" class="primary">เข้าสู่ระบบ</button><button type="button" id="signUp" class="secondary">สมัครบัญชี</button></div>
+    </div>
+    <div class="actions"><button type="button" id="syncNow" class="primary hidden">ซิงก์ตอนนี้</button><button type="button" id="signOut" class="secondary hidden">ออกจากระบบ</button></div>
+    <p id="authMessage" class="hint">ข้อมูลยังบันทึกในเครื่องได้ แม้ไม่สมัครบัญชี</p>
+    <p class="hint">บัญชีนี้ใช้เฉพาะ MAXONE · ไม่เกี่ยวข้องกับ Cotton Favor</p>
+  </div>
+</div>
+<script src="src/stock-engine.js?v=3"></script>
+<script src="src/db.js"></script>
+<script src="src/app.js?v=3"></script>
+</body>
+</html>
