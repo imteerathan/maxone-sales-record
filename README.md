@@ -72,3 +72,12 @@ See [`TEST-REPORT.md`](TEST-REPORT.md) for the exact checks performed and items 
 ## Global Stock Migration (second fix)
 
 On every app startup, existing IndexedDB records are normalized and recalculated as one company-wide stock ledger. Legacy per-shop opening seeds are discarded except for the earliest transaction, which retains the initial warehouse seed. After Cloud merge, the same global rebuild is applied and corrected balances are written back to Supabase. Service worker cache version is bumped to `maxone-sales-v3-global-ledger-migration`.
+
+
+## v0.3 update
+
+- Header displays the app version (`v0.3`).
+- Online/offline network state is shown separately before the sync status.
+- Shop management includes search, rename, duplicate-name validation, and selecting the renamed shop immediately. Changes sync through the existing owner-scoped Supabase shop upsert.
+- On the first v0.3 startup per browser profile, the app clears its MAXONE IndexedDB stores (`shops`, `records`, `audit`, `syncQueue`) once, preserves the sign-in session, then initializes the clean ledger and default shop names. This is a one-time reset marker; it does not clear browser data on every launch.
+- The dedicated MAXONE Supabase tables were reset for the fresh start. No Cotton Favor project or data was touched.
