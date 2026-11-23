@@ -1,4 +1,4 @@
-var CACHE = 'maxone-sales-v4-shop-editor';
+var CACHE = 'maxone-sales-v5-shop-delete';
 var FILES = [
   './', './index.html', './manifest.webmanifest', './src/app.css',
   './src/stock-engine.js', './src/db.js', './src/app.js',
