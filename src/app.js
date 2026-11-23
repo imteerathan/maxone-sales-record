@@ -702,9 +702,9 @@
     loadSession();
     renderAccount();
     MDB.open().then(function () {
-      if (localStorage.getItem('maxone-v03-data-reset') === 'done') return rebuildGlobalLedger();
+      if (localStorage.getItem('maxone-v032-data-reset') === 'done') return rebuildGlobalLedger();
       return MDB.clearAll().then(function () {
-        localStorage.setItem('maxone-v03-data-reset', 'done');
+        localStorage.setItem('maxone-v032-data-reset', 'done');
         return rebuildGlobalLedger();
       });
     }).then(function () {
