@@ -55,3 +55,13 @@ The test suite validates the calculation engine, not every end-to-end browser wo
 - `tests/stock-engine.test.js`: 22 global-stock-ledger assertions passed in the isolated JavaScript test run.
 - Supabase reset verification: `shops = 0`, `sales_records = 0`, `sync_tombstones = 0` immediately after reset.
 - UI browser/device interaction and automatic Vercel deployment are not verified by these checks.
+
+
+## v0.3.3 checks
+
+- `src/app.js` JavaScript syntax: passed.
+- Global ledger scenario: first seed 31 cases + 4 packs + 7 bottles (1,597 bottles), sale 8 cases + 3 packs (430 bottles), closing 1,167 bottles (23 cases + 1 pack + 7 bottles): passed.
+- Next transaction inherits 1,167 bottles as opening stock and closes at 1,157 after a 10-bottle sale: passed.
+- Supabase Cloud remains empty after reset: shops 0, sales_records 0, sync_tombstones 0.
+- GitHub commit's Vercel check: success.
+- End-to-end email confirmation still requires Supabase Dashboard URL Configuration and a real confirmation email test.
