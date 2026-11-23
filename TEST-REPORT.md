@@ -47,3 +47,11 @@ The test suite validates the calculation engine, not every end-to-end browser wo
 - Confirmed all later opening and closing balances are rebuilt globally in timestamp order, replacing stale legacy closing balances.
 - Startup now rebuilds IndexedDB before rendering the form. Cloud sync rebuilds again after merging remote rows and writes corrected balances back to Supabase.
 - Service worker cache bumped to `maxone-sales-v3-global-ledger-migration` to prevent the old JS bundle from remaining active.
+
+
+## v0.3 checks
+
+- JavaScript parse checks for `src/app.js`, `src/db.js`, and `src/stock-engine.js`: passed.
+- `tests/stock-engine.test.js`: 22 global-stock-ledger assertions passed in the isolated JavaScript test run.
+- Supabase reset verification: `shops = 0`, `sales_records = 0`, `sync_tombstones = 0` immediately after reset.
+- UI browser/device interaction and automatic Vercel deployment are not verified by these checks.
