@@ -81,3 +81,11 @@ On every app startup, existing IndexedDB records are normalized and recalculated
 - Shop management includes search, rename, duplicate-name validation, and selecting the renamed shop immediately. Changes sync through the existing owner-scoped Supabase shop upsert.
 - On the first v0.3 startup per browser profile, the app clears its MAXONE IndexedDB stores (`shops`, `records`, `audit`, `syncQueue`) once, preserves the sign-in session, then initializes the clean ledger and default shop names. This is a one-time reset marker; it does not clear browser data on every launch.
 - The dedicated MAXONE Supabase tables were reset for the fresh start. No Cotton Favor project or data was touched.
+
+
+## v0.3.3
+
+- Signup now passes the current production origin as the Supabase Auth `redirect_to` destination.
+- The v0.3.3 first-start marker clears stale MAXONE IndexedDB stores once on the browser profile so offline records from the previous test/reset cycle are not merged back into the freshly cleared Cloud.
+- The first global-ledger transaction explicitly persists the user-entered warehouse opening seed. It rejects a first transaction with no opening seed and no stock refill, and later transactions inherit the previous global closing balance.
+- Supabase Auth URL Configuration still requires the project owner to set Site URL to `https://maxone-sales-record.vercel.app/` and add that exact URL to Redirect URLs. Confirm the signup email template uses `{{ .ConfirmationURL }}` or correctly passes `{{ .RedirectTo }}`; a hardcoded localhost redirect in a customized template must be removed.
