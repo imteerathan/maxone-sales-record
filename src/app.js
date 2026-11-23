@@ -38,6 +38,11 @@
     $('status').textContent = message;
     $('status').className = bad ? 'status-error' : '';
   }
+  function updateNetworkStatus() {
+    var online = navigator.onLine;
+    $('networkStatus').textContent = online ? '● ออนไลน์' : '● ออฟไลน์';
+    $('networkStatus').className = online ? 'network-online' : 'network-offline';
+  }
   function number(id) {
     var raw = $(id).value;
     if (raw === '') return 0;
@@ -306,6 +311,56 @@
       if (session && navigator.onLine) syncAll();
     }).catch(showError);
   }
+
+  function openShopEditor() {
+    $('shopEditor').classList.remove('hidden');
+    $('shopSearch').value = '';
+    $('shopEditName').value = '';
+    $('shopEditId').value = '';
+    renderShopChoices();
+    $('shopSearch').focus();
+  }
+  function closeShopEditor() { $('shopEditor').classList.add('hidden'); }
+  function renderShopChoices() {
+    var query = $('shopSearch').value.replace(/^\\s+|\\s+$/g, '').toLowerCase();
+    var found = shops.filter(function (shop) { return shop.name.toLowerCase().indexOf(query) >= 0; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name, 'th'); });
+    $('shopChoices').innerHTML = found.length ? found.map(function (shop) {
+      return '<button type="button" class="shop-choice' + (shop.id === $('shopEditId').value ? ' selected' : '') +
+        '" data-shop-choice="' + escapeHtml(shop.id) + '"><span>' + escapeHtml(shop.name) +
+        '</span><small>' + (shop.id === $('shop').value ? 'ร้านที่เลือกอยู่' : 'เลือกเพื่อแก้ไข') + '</small></button>';
+    }).join('') : '<div class="empty">ไม่พบร้านค้าที่ค้นหา</div>';
+  }
+  function selectShopForEdit(shopId) {
+    var shop = shops.filter(function (item) { return item.id === shopId; })[0];
+    if (!shop) return;
+    $('shopEditId').value = shop.id;
+    $('shopEditName').value = shop.name;
+    renderShopChoices();
+    $('shopEditName').focus();
+  }
+  function saveShopEdit() {
+    var shopId = $('shopEditId').value;
+    var shop = shops.filter(function (item) { return item.id === shopId; })[0];
+    var name = $('shopEditName').value.replace(/^\\s+|\\s+$/g, '');
+    if (!shop) { $('shopEditMessage').textContent = 'กรุณาเลือกร้านค้าที่ต้องการแก้ไข'; return; }
+    if (!name) { $('shopEditMessage').textContent = 'กรุณากรอกชื่อร้าน'; return; }
+    if (shops.some(function (item) { return item.id !== shopId && item.name.toLowerCase() === name.toLowerCase(); })) {
+      $('shopEditMessage').textContent = 'มีชื่อร้านนี้อยู่แล้ว'; return;
+    }
+    shop.name = name;
+    shop.updatedAt = Date.now();
+    MDB.write('shops', shop).then(function () {
+      return refresh();
+    }).then(function () {
+      $('shop').value = shopId;
+      updateOpening();
+      closeShopEditor();
+      setStatus('● แก้ไขชื่อร้านในเครื่องแล้ว', false);
+      if (session && navigator.onLine) syncAll();
+    }).catch(showError);
+  }
+
   function suggestWeek() {
     var date = new Date();
     var daysBack = (date.getDay() + 1) % 7;
@@ -630,6 +685,7 @@
       resetForm();
       if (session && navigator.onLine) syncAll();
     }).catch(showError);
+    updateNetworkStatus();
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
       navigator.serviceWorker.register('sw.js').catch(function () {});
     }
@@ -648,6 +704,16 @@
     $('date').onchange = updateOpening;
     $('time').onchange = updateOpening;
     $('addShop').onclick = addShop;
+    $('editShop').onclick = openShopEditor;
+    $('closeShopEditor').onclick = closeShopEditor;
+    $('shopSearch').oninput = renderShopChoices;
+    $('shopChoices').onclick = function (event) {
+      var target = event.target;
+      while (target && target !== $('shopChoices') && !target.getAttribute('data-shop-choice')) target = target.parentNode;
+      if (target && target.getAttribute('data-shop-choice')) selectShopForEdit(target.getAttribute('data-shop-choice'));
+    };
+    $('saveShopEdit').onclick = saveShopEdit;
+    $('shopEditor').onclick = function (event) { if (event.target === $('shopEditor')) closeShopEditor(); };
     $('reset').onclick = resetForm;
     $('editBalance').onclick = function () {
       override = !override;
@@ -677,8 +743,8 @@
     $('signOut').onclick = signOut;
     $('syncNow').onclick = syncAll;
     $('authModal').onclick = function (event) { if (event.target === $('authModal')) closeAuth(); };
-    window.addEventListener('online', function () { if (session) syncAll(); else setStatus('● ออนไลน์ · ยังไม่ได้เชื่อม Cloud', false); });
-    window.addEventListener('offline', function () { setStatus('● ออฟไลน์ · บันทึกในเครื่องได้', false); });
+    window.addEventListener('online', function () { updateNetworkStatus(); if (session) syncAll(); else setStatus('● ยังไม่ได้เชื่อม Cloud', false); });
+    window.addEventListener('offline', function () { updateNetworkStatus(); setStatus('● บันทึกในเครื่องได้', false); });
     $('date').value = iso();
     var initialNow = new Date();
     $('time').value = ('0' + initialNow.getHours()).slice(-2) + ':' + ('0' + initialNow.getMinutes()).slice(-2);
