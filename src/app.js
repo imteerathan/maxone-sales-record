@@ -131,6 +131,7 @@
     $('firstNote').classList.toggle('hidden', !result.first);
     if (result.first && current) setUnits('s', MaxoneStock.bottlesToUnits(current.openingSeedBottles || 0));
     if (result.first && !current) setUnits('s', { cases: 0, packs: 0, bottles: 0 });
+    $('seedBox').setAttribute('data-ledger-first', result.first ? 'true' : 'false');
     calculate();
   }
   function getCalculation() {
@@ -196,6 +197,9 @@
   function persistChange(candidate, oldRecord, action) {
     /* Recalculate the entire company stock ledger, irrespective of shop/location. */
     /* The initial warehouse balance belongs to the ledger, not to a particular shop/event. */
+    if (action !== 'delete' && !(records || []).length && Number(candidate.openingSeedBottles || 0) > 0) {
+      candidate.openingSeedBottles = Number(candidate.openingSeedBottles);
+    }
     var affected = MaxoneStock.prepareLedger(records, candidate, action);
     affected = MaxoneStock.normalizeLedger(affected);
     var recalculated = MaxoneStock.recalculate(affected);
@@ -220,7 +224,9 @@
       if (!$('date').value) throw new Error('กรุณาเลือกวันที่ขาย');
       if (!$('time').value) throw new Error('กรุณาเลือกเวลาทำรายการ');
       var calc = getCalculation();
-      if (calc.closing < 0) throw new Error('สต๊อกไม่เพียงพอ');
+      var firstLedgerEntry = records.filter(function (record) { return record.id !== editId; }).length === 0;
+      if (firstLedgerEntry && calc.seed <= 0 && calc.refill <= 0) throw new Error('รายการแรกยังไม่มี Stock ตั้งต้น กรุณากรอก Stock ตั้งต้นในหัวข้อ Stock กลางตั้งต้น หรือกรอกจำนวนรับสินค้าเข้า Stock กลางก่อนบันทึก');
+      if (calc.closing < 0) throw new Error('Stock ไม่เพียงพอ: Stock ตั้งต้น + รับสินค้าเข้า ต้องไม่น้อยกว่ายอดขาย');
       var closingOverride = null;
       if (override) {
         var requested = units('x');
@@ -236,7 +242,7 @@
         id: editId || uuid(), shopId: shopId, date: $('date').value, time: $('time').value,
         transactionAt: transactionTimestamp($('date').value, $('time').value),
         createdAt: old ? old.createdAt : now, updatedAt: now, expiryDate: $('expiry').value || null,
-        openingSeedBottles: calc.seed, refillBottles: calc.refill, salesBottles: calc.sales,
+        openingSeedBottles: firstLedgerEntry ? calc.seed : 0, refillBottles: calc.refill, salesBottles: calc.sales,
         closingOverrideBottles: closingOverride, sourceType: 'app'
       };
       persistChange(row, old, old ? 'update' : 'create').then(function () {
@@ -521,7 +527,7 @@
     var password = $('authPassword').value;
     if (!email || password.length < 8) { authMessage('กรอกอีเมลและรหัสผ่านอย่างน้อย 8 ตัวอักษร', true); return; }
     authMessage('กำลังสมัครบัญชี...', false);
-    authRequest('/auth/v1/signup', { email: email, password: password }).then(function (data) {
+    authRequest('/auth/v1/signup?redirect_to=' + encodeURIComponent(location.origin + '/'), { email: email, password: password }).then(function (data) {
       if (data && data.access_token) {
         data.expires_at = Math.floor(Date.now() / 1000) + Number(data.expires_in || 3600);
         saveSession(data);
@@ -702,9 +708,9 @@
     loadSession();
     renderAccount();
     MDB.open().then(function () {
-      if (localStorage.getItem('maxone-v032-data-reset') === 'done') return rebuildGlobalLedger();
+      if (localStorage.getItem('maxone-v033-data-reset') === 'done') return rebuildGlobalLedger();
       return MDB.clearAll().then(function () {
-        localStorage.setItem('maxone-v032-data-reset', 'done');
+        localStorage.setItem('maxone-v033-data-reset', 'done');
         return rebuildGlobalLedger();
       });
     }).then(function () {
