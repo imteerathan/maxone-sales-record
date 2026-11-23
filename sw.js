@@ -1,4 +1,4 @@
-var CACHE = 'maxone-sales-v3-global-ledger-migration';
+var CACHE = 'maxone-sales-v4-shop-editor';
 var FILES = [
   './', './index.html', './manifest.webmanifest', './src/app.css',
   './src/stock-engine.js', './src/db.js', './src/app.js',
