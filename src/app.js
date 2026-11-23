@@ -326,10 +326,45 @@
     var found = shops.filter(function (shop) { return shop.name.toLowerCase().indexOf(query) >= 0; })
       .sort(function (a, b) { return a.name.localeCompare(b.name, 'th'); });
     $('shopChoices').innerHTML = found.length ? found.map(function (shop) {
-      return '<button type="button" class="shop-choice' + (shop.id === $('shopEditId').value ? ' selected' : '') +
-        '" data-shop-choice="' + escapeHtml(shop.id) + '"><span>' + escapeHtml(shop.name) +
-        '</span><small>' + (shop.id === $('shop').value ? 'ร้านที่เลือกอยู่' : 'เลือกเพื่อแก้ไข') + '</small></button>';
+      return '<div class="shop-choice-row' + (shop.id === $('shopEditId').value ? ' selected' : '') + '">' +
+        '<button type="button" class="shop-choice-delete" data-shop-delete="' + escapeHtml(shop.id) + '" aria-label="ลบร้าน ' + escapeHtml(shop.name) + '" title="ลบร้านค้า">ลบ</button>' +
+        '<button type="button" class="shop-choice-select" data-shop-choice="' + escapeHtml(shop.id) + '">' +
+        '<span>' + escapeHtml(shop.name) + '</span><small>' + (shop.id === $('shop').value ? 'ร้านที่เลือกอยู่' : 'เลือกเพื่อแก้ไข') + '</small></button></div>';
     }).join('') : '<div class="empty">ไม่พบร้านค้าที่ค้นหา</div>';
+  }
+  function deleteShop(shopId) {
+    var shop = shops.filter(function (item) { return item.id === shopId; })[0];
+    if (!shop) return;
+    if (!window.confirm('ยืนยันลบร้านค้า "' + shop.name + '"? ร้านค้าที่มีประวัติการขายจะไม่สามารถลบได้')) return;
+    if (!navigator.onLine || !session) {
+      $('shopEditMessage').textContent = 'การลบร้านค้าต้องออนไลน์และเข้าสู่ระบบ Cloud ก่อน เพื่อป้องกันข้อมูลซิงก์กลับมา';
+      return;
+    }
+    $('shopEditMessage').textContent = 'กำลังตรวจสอบข้อมูลร้านค้า...';
+    syncAll().then(function () {
+      return refresh();
+    }).then(function () {
+      var hasRecords = records.some(function (record) { return record.shopId === shopId; });
+      if (hasRecords) throw new Error('ร้านนี้มีประวัติการขายอยู่ จึงไม่สามารถลบได้ เพื่อรักษาประวัติและ Stock Ledger');
+      return validSession().then(function (active) {
+        if (!active) throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+        return dbRequest('shops', 'DELETE', 'id=eq.' + encodeURIComponent(shopId), null, active, 'return=minimal');
+      });
+    }).then(function () {
+      return MDB.del('shops', shopId);
+    }).then(function () {
+      if ($('shop').value === shopId) $('shop').value = '';
+      $('shopEditId').value = '';
+      $('shopEditName').value = '';
+      return refresh();
+    }).then(function () {
+      $('shopEditMessage').textContent = 'ลบร้านค้าเรียบร้อยแล้ว';
+      setStatus('● ลบร้านค้าแล้ว', false);
+      renderShopChoices();
+      updateOpening();
+    }).catch(function (error) {
+      $('shopEditMessage').textContent = error.message || 'ลบร้านค้าไม่สำเร็จ';
+    });
   }
   function selectShopForEdit(shopId) {
     var shop = shops.filter(function (item) { return item.id === shopId; })[0];
@@ -713,8 +748,10 @@
     $('shopSearch').oninput = renderShopChoices;
     $('shopChoices').onclick = function (event) {
       var target = event.target;
-      while (target && target !== $('shopChoices') && !target.getAttribute('data-shop-choice')) target = target.parentNode;
-      if (target && target.getAttribute('data-shop-choice')) selectShopForEdit(target.getAttribute('data-shop-choice'));
+      while (target && target !== $('shopChoices') && !target.getAttribute('data-shop-choice') && !target.getAttribute('data-shop-delete')) target = target.parentNode;
+      if (!target || target === $('shopChoices')) return;
+      if (target.getAttribute('data-shop-delete')) deleteShop(target.getAttribute('data-shop-delete'));
+      else if (target.getAttribute('data-shop-choice')) selectShopForEdit(target.getAttribute('data-shop-choice'));
     };
     $('saveShopEdit').onclick = saveShopEdit;
     $('shopEditor').onclick = function (event) { if (event.target === $('shopEditor')) closeShopEditor(); };
