@@ -15,9 +15,9 @@
 <body>
 <div class="app">
   <header>
-    <div class="eyebrow">MAXONE · MOBILE SALES</div>
+    <div class="eyebrow">MAXONE · MOBILE SALES <span class="app-version">v0.3</span></div>
     <div class="header-row"><h1>Sales Record</h1><button type="button" id="accountButton" class="account-button">เข้าสู่ระบบ / ซิงก์</button></div>
-    <span id="status">● บันทึกในเครื่อง</span>
+    <div class="status-row"><span id="networkStatus">● กำลังตรวจสอบเครือข่าย</span><span id="status">● บันทึกในเครื่อง</span></div>
   </header>
   <nav>
     <button class="tab active" data-tab="entry">บันทึกยอดขาย</button>
@@ -30,7 +30,7 @@
         <h2>01 · ข้อมูลการขาย</h2>
         <div class="units"><div><label for="date">วันที่ทำรายการ *</label><input id="date" type="date" required></div><div><label for="time">เวลาทำรายการ *</label><input id="time" type="time" required></div></div>
         <label for="shop">ชื่อร้าน / จังหวัด *</label>
-        <div class="inline"><select id="shop" required><option value="">เลือกร้านค้า</option></select><button type="button" id="addShop" aria-label="เพิ่มร้านค้า">+</button></div>
+        <div class="inline shop-controls"><select id="shop" required><option value="">เลือกร้านค้า</option></select><button type="button" id="editShop" class="edit-shop" aria-label="แก้ไขร้านค้า" title="แก้ไขร้านค้า">✎</button><button type="button" id="addShop" aria-label="เพิ่มร้านค้า">+</button></div>
         <h2>02 · Stock กลางตั้งต้น</h2>
         <p class="hint">ยอดคงเหลือจากรายการก่อนหน้าทั้งหมดใน Stock กลาง ไม่แยกตามร้านค้า</p>
         <div class="units">
@@ -94,6 +94,17 @@
   </main>
   <footer>Stock กลางของ MAXONE · ร้านค้าเป็นสถานที่ขาย ไม่ใช่เจ้าของสต๊อก · ข้อมูลบันทึกในอุปกรณ์ก่อน</footer>
 </div>
+<div id="shopEditor" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shopEditorTitle">
+  <div class="modal-card shop-editor-card">
+    <div class="modal-head"><h2 id="shopEditorTitle">จัดการชื่อร้านค้า</h2><button type="button" id="closeShopEditor" class="close-button" aria-label="ปิด">×</button></div>
+    <label for="shopSearch">ค้นหาร้านค้า</label><input id="shopSearch" type="search" placeholder="พิมพ์ชื่อร้านเพื่อค้นหา">
+    <div id="shopChoices" class="shop-choices"></div>
+    <input type="hidden" id="shopEditId">
+    <label for="shopEditName">แก้ไขชื่อร้าน</label><input id="shopEditName" type="text" placeholder="เลือกชื่อร้านจากรายการด้านบน">
+    <p id="shopEditMessage" class="hint">เลือกร้านที่ต้องการแก้ไข แล้วกดบันทึก</p>
+    <button type="button" id="saveShopEdit" class="primary wide">บันทึกชื่อและเลือกร้านนี้</button>
+  </div>
+</div>
 <div id="authModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
   <div class="modal-card">
     <div class="modal-head"><h2 id="authTitle">บัญชี MAXONE</h2><button type="button" id="closeAuth" class="close-button" aria-label="ปิด">×</button></div>
@@ -108,8 +119,8 @@
     <p class="hint">บัญชีนี้ใช้เฉพาะ MAXONE · ไม่เกี่ยวข้องกับ Cotton Favor</p>
   </div>
 </div>
-<script src="src/stock-engine.js?v=3"></script>
+<script src="src/stock-engine.js?v=4"></script>
 <script src="src/db.js"></script>
-<script src="src/app.js?v=3"></script>
+<script src="src/app.js?v=4"></script>
 </body>
 </html>
