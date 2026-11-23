@@ -667,7 +667,11 @@
     loadSession();
     renderAccount();
     MDB.open().then(function () {
-      return rebuildGlobalLedger();
+      if (localStorage.getItem('maxone-v03-data-reset') === 'done') return rebuildGlobalLedger();
+      return MDB.clearAll().then(function () {
+        localStorage.setItem('maxone-v03-data-reset', 'done');
+        return rebuildGlobalLedger();
+      });
     }).then(function () {
       return MDB.all('shops');
     }).then(function (existing) {
