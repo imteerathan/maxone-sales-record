@@ -53,6 +53,18 @@
       });
     });
   }
+  function clearAll() {
+    return open().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var names = ['shops', 'records', 'audit', 'syncQueue'];
+        var transaction = db.transaction(names, 'readwrite');
+        names.forEach(function (name) { transaction.objectStore(name).clear(); });
+        transaction.oncomplete = function () { resolve(); };
+        transaction.onerror = function () { reject(transaction.error); };
+        transaction.onabort = function () { reject(transaction.error || new Error('ล้างข้อมูลในเครื่องไม่สำเร็จ')); };
+      });
+    });
+  }
   function applyRecordChange(rows, deleteId, audit, queue) {
     return open().then(function (db) {
       return new Promise(function (resolve, reject) {
@@ -68,5 +80,5 @@
       });
     });
   }
-  window.MDB = { open: open, all: all, write: write, del: del, applyRecordChange: applyRecordChange };
+  window.MDB = { open: open, all: all, write: write, del: del, clearAll: clearAll, applyRecordChange: applyRecordChange };
 }(window));
