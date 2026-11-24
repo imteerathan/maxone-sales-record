@@ -152,7 +152,7 @@
     $('shop').value = '';
     $('calcEnabled').checked = false;
     ['fc','fp','fb','vc','vp','vb','sc','sp','sb','xc','xp','xb'].forEach(function (id) { $(id).value = 0; });
-    $('overrideBox').classList.add('hidden');
+    $('overrideBox').classList.add('hidden'); $('adjustReasonBox').classList.add('hidden'); $('adjustReason').value='';
     $('editBalance').textContent = 'แก้ไขยอดสต๊อกคงเหลือ';
     $('save').textContent = 'บันทึกยอดขาย';
     updateOpening();
@@ -182,7 +182,7 @@
     var queue=action==='delete'?cloudQueueDelete(candidate.id):null;
     return MDB.applyRecordChange(affected,action==='delete'?candidate.id:null,audit,queue).then(refresh);
   }
-  function saveRecord(event){event.preventDefault();try{var shopId=$('shop').value;if(!shopId)throw new Error('กรุณาเลือกร้านค้า');var c=getCalculation(),old=records.filter(function(r){return r.id===editId;})[0]||null,now=Date.now(),row={id:editId||uuid(),shopId:shopId,date:$('date').value,time:$('time').value,transactionAt:transactionTimestamp($('date').value,$('time').value),createdAt:old?old.createdAt:now,updatedAt:now,expiryDate:$('expiry').value||null,stockCalculationEnabled:c.enabled,opening_cases:c.opening.cases,opening_packs:c.opening.packs,opening_loose_bottles:c.opening.bottles,sales_cases:c.sales.cases,sales_packs:c.sales.packs,sales_loose_bottles:c.sales.bottles,closing_cases:c.closing.cases,closing_packs:c.closing.packs,closing_loose_bottles:c.closing.bottles,refill_cases:number('fc'),refill_packs:number('fp'),refill_loose_bottles:number('fb'),openingSeedBottles:0,refillBottles:0,salesBottles:0,closingBottles:0,sourceType:'app'};persistChange(row,old,old?'update':'create').then(function(){resetForm();setStatus('● บันทึกในเครื่องแล้ว',false);if(session&&navigator.onLine)syncAll();}).catch(showError);}catch(e){showError(e);}}
+  function saveRecord(event){event.preventDefault();try{var shopId=$('shop').value;if(!shopId)throw new Error('กรุณาเลือกร้านค้า');var c=getCalculation(),old=records.filter(function(r){return r.id===editId;})[0]||null,now=Date.now(),row={id:editId||uuid(),shopId:shopId,date:$('date').value,time:$('time').value,transactionAt:transactionTimestamp($('date').value,$('time').value),createdAt:old?old.createdAt:now,updatedAt:now,expiryDate:$('expiry').value||null,stockCalculationEnabled:c.enabled,opening_cases:c.opening.cases,opening_packs:c.opening.packs,opening_loose_bottles:c.opening.bottles,sales_cases:c.sales.cases,sales_packs:c.sales.packs,sales_loose_bottles:c.sales.bottles,closing_cases:c.closing.cases,closing_packs:c.closing.packs,closing_loose_bottles:c.closing.bottles,refill_cases:number('fc'),refill_packs:number('fp'),refill_loose_bottles:number('fb'),openingSeedBottles:0,refillBottles:0,salesBottles:0,closingBottles:0,sourceType:'app',adjustmentReason:override?$('adjustReason').value.trim():null};if(override&&!row.adjustmentReason)throw new Error('กรุณาระบุเหตุผลที่ปรับยอดสต๊อก');persistChange(row,old,old?'update':'create').then(function(){resetForm();setStatus('● บันทึกในเครื่องแล้ว',false);if(session&&navigator.onLine)syncAll();}).catch(showError);}catch(e){showError(e);}}
   function showError(error) {
     $('error').textContent = error && error.message ? error.message : String(error);
     $('error').classList.remove('hidden');
@@ -204,7 +204,7 @@
     updateOpening();
     override = !record.stockCalculationEnabled &&
       (record.closing_cases != null || record.closing_packs != null || record.closing_loose_bottles != null);
-    $('overrideBox').classList.toggle('hidden', !override);
+    $('overrideBox').classList.toggle('hidden', !override); $('adjustReasonBox').classList.toggle('hidden',!override); if(override)$('adjustReason').value=record.adjustmentReason||'';
     if (override) setUnits('x', {cases:record.closing_cases,packs:record.closing_packs,bottles:record.closing_loose_bottles});
     $('editBalance').textContent = override ? 'ยกเลิกแก้ไขยอด' : 'แก้ไขยอดสต๊อกคงเหลือ';
     $('save').textContent = 'บันทึกการแก้ไข';
@@ -399,6 +399,19 @@
   }
 
   /* Small XHR client: avoids modern JS syntax in the app shell for older iOS Safari. */
+
+  function exportPdf() {
+    var from=$('from').value,to=$('to').value;
+    if(!from||!to||from>to){window.alert('กรุณาเลือกช่วงวันที่ให้ถูกต้อง');return;}
+    var rows=records.filter(function(r){return r.date>=from&&r.date<=to;}).sort(MaxoneStock.compareRecords);
+    if(!rows.length){window.alert('ไม่พบข้อมูลในช่วงวันที่เลือก');return;}
+    var body=rows.map(function(r){return '<tr><td>'+escapeHtml(thaiDate(r.date))+'</td><td>'+escapeHtml(r.time||'00:00')+'</td><td>'+escapeHtml(shopName(r.shopId))+'</td><td>'+escapeHtml(unitText({cases:r.opening_cases==null?'—':r.opening_cases,packs:r.opening_packs==null?'—':r.opening_packs,bottles:r.opening_loose_bottles==null?'—':r.opening_loose_bottles}))+'</td><td>'+escapeHtml(unitText({cases:r.sales_cases==null?'—':r.sales_cases,packs:r.sales_packs==null?'—':r.sales_packs,bottles:r.sales_loose_bottles==null?'—':r.sales_loose_bottles}))+'</td><td>'+escapeHtml(unitText({cases:r.closing_cases==null?'—':r.closing_cases,packs:r.closing_packs==null?'—':r.closing_packs,bottles:r.closing_loose_bottles==null?'—':r.closing_loose_bottles}))+'</td><td>'+escapeHtml(thaiDate(r.expiryDate))+'</td></tr>';}).join('');
+    var w=window.open('','_blank');
+    if(!w){window.alert('เบราว์เซอร์บล็อกหน้าต่างรายงาน กรุณาอนุญาต Pop-up แล้วลองใหม่');return;}
+    w.document.open();w.document.write('<!doctype html><html lang="th"><head><meta charset="utf-8"><title>MAXONE Sales Report</title><style>body{font-family:Tahoma,"Noto Sans Thai",sans-serif;color:#18231f;padding:24px}h1{font-size:20px;margin:0 0 6px}p{font-size:12px;color:#52615a;margin:0 0 18px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #b8c6bf;padding:7px 5px;text-align:left;vertical-align:top}th{background:#eaf2ed}tfoot{font-weight:bold}@page{size:A4 landscape;margin:12mm}@media print{button{display:none}}</style></head><body><h1>รายงานยอดขายและ Stock กลาง MAXONE</h1><p>ช่วงวันที่ '+escapeHtml(thaiDate(from))+' ถึง '+escapeHtml(thaiDate(to))+' · '+rows.length+' รายการ</p><table><thead><tr><th>วันที่</th><th>เวลา</th><th>ร้านค้า</th><th>Stock ตั้งต้น</th><th>ยอดขาย</th><th>Stock คงเหลือ</th><th>วันหมดอายุ</th></tr></thead><tbody>'+body+'</tbody></table><p style="margin-top:14px">พิมพ์รายงานนี้เป็น PDF โดยเลือก “Save as PDF” ในหน้าต่างพิมพ์</p><script>window.onload=function(){setTimeout(function(){window.print();},300)};<\/script></body></html>');
+    w.document.close();
+  }
+
   function request(path, method, body, token, extraHeaders) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
@@ -523,7 +536,7 @@
       refill_cases:row.refill_crates, refill_packs:row.refill_packs, refill_loose_bottles:row.refill_bottles,
       stockCalculationEnabled:!!row.stock_calculation_enabled, date:row.sale_date,
       time:row.sale_time||(row.transaction_at?(function(d){return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}(new Date(row.transaction_at))):'00:00'),
-      transactionAt:parseTime(row.transaction_at||row.created_at), expiryDate:row.expiry_date||null,
+      transactionAt:parseTime(row.transaction_at||row.created_at), expiryDate:row.expiry_date||null, adjustmentReason:row.adjustment_reason||null,
       createdAt:parseTime(row.created_at), updatedAt:parseTime(row.updated_at), sourceType:'app'
     };
   }
@@ -704,7 +717,7 @@
       } else {
         override = false;
       }
-      $('overrideBox').classList.toggle('hidden', !override);
+      $('overrideBox').classList.toggle('hidden', !override); $('adjustReasonBox').classList.toggle('hidden',!override);
       $('editBalance').textContent = override ? 'ยกเลิกแก้ไขยอด' : 'แก้ไขยอดสต๊อกคงเหลือ';
       calculate();
     };
@@ -722,6 +735,7 @@
     $('search').oninput = history;
     $('week').onclick = suggestWeek;
     $('export').onclick = exportExcel;
+    $('exportPdf').onclick = exportPdf;
     $('accountButton').onclick = openAuth;
     $('closeAuth').onclick = closeAuth;
     $('signUp').onclick = signUp;
