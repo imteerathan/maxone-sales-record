@@ -7,13 +7,12 @@ Mobile-first, offline-first sales and stock ledger based on the supplied `ยอ
 - Two tabs: sales entry and historical report.
 - Shop dropdown with add-new shop. The three shop names in the workbook are seeded as selectable names only; historical transactions are not imported.
 - Transaction date and time are both recorded. Each transaction has an internal, hidden SalesID.
-- There is one company-wide warehouse stock ledger. The first event establishes initial warehouse stock; every later event inherits the previous event's closing balance, regardless of which shop the sale happened at.
-- Refill and sales accept cases, packs and bottles. Calculations use integer bottles: 10 bottles = 1 pack; 5 packs = 1 case (50 bottles).
-- Closing stock is calculated as opening + refill - sales. Negative stock and fractional quantities are rejected.
-- Manual closing-stock correction requires confirmation and is stored as a signed adjustment. The corrected balance carries forward.
-- Refill increases central warehouse stock at the event timestamp. Editing, deleting, or changing the time of a record recalculates the entire later global ledger, across all shops. The local record update and audit entry are committed in one IndexedDB transaction.
+- Opening stock is an optional, editable report field and is not inferred or recalculated.
+- Closing stock is editable by default. An optional checkbox calculates cases, packs, and bottles independently from the latest earlier-date closing balance minus today's sales in each matching unit.
+- Stock entry no longer includes refill-to-central-stock fields. Saving and deleting a record do not recalculate or rewrite other saved balances.
+- The local record update and audit entry are committed in one IndexedDB transaction. Existing local and Supabase records are not cleared by the v0.9.5 startup path.
 - History defaults to the last 60 days and can show all records.
-- Excel export accepts any selected date range, keeps the original A-L structure in `Sheet1`, and adds a second sheet for transaction time, refill, and stock-adjustment detail. Internal SalesID is not shown or exported. Dates in Excel are written in Buddhist Era (พ.ศ.) to match the supplied workbook.
+- Excel and PDF exports use the supplied 12-column report layout and title `แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.`. Sales totals are summed by unit, labeled, and blank for units totaling zero. Excel dates are written in Buddhist Era (พ.ศ.). Internal SalesID is not shown or exported.
 - Local-first storage uses IndexedDB. The app shell and Excel library are cached by the service worker after the first online visit.
 - Supabase email/password authentication and owner-scoped cloud sync are implemented using the project's publishable key and REST/Auth endpoints. No service-role key is present in the client.
 

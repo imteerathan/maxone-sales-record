@@ -5,9 +5,7 @@
   var shops = [];
   var records = [];
   var editId = null;
-  var override = false;
   var allMode = false;
-  var opening = 0;
   var session = null;
   var syncBusy = false;
   var shopEditorMode = 'edit';
@@ -55,7 +53,7 @@
     $(prefix + 'p').value = value.packs;
     $(prefix + 'b').value = value.bottles;
   }
-  function unitText(value) { return value.cases + ' ลัง ' + value.packs + ' แพ็ค ' + value.bottles + ' ขวด'; }
+  function unitText(value) { return (value.cases==null?'—':value.cases) + ' ลัง ' + (value.packs==null?'—':value.packs) + ' แพ็ค ' + (value.bottles==null?'—':value.bottles) + ' ขวด'; }
   function escapeHtml(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -69,15 +67,6 @@
     var parsed = Date.parse(String(date || '') + 'T' + String(time || '00:00') + ':00');
     if (!isFinite(parsed)) throw new Error('วันที่หรือเวลาทำรายการไม่ถูกต้อง');
     return parsed;
-  }
-  function openingFor(date, time, currentRecord) {
-    var target = { date: date, time: time, transactionAt: transactionTimestamp(date, time), createdAt: currentRecord ? currentRecord.createdAt : Date.now(), id: currentRecord ? currentRecord.id : 'new-record', openingSeedBottles: currentRecord ? currentRecord.openingSeedBottles : 0 };
-    var previous = records.filter(function (record) {
-      if (currentRecord && record.id === currentRecord.id) return false;
-      return MaxoneStock.compareRecords(record, target) < 0;
-    }).sort(MaxoneStock.compareRecords);
-    if (previous.length) return { value: Number(previous[previous.length - 1].closingBottles || 0), first: false };
-    return { value: currentRecord ? Number(currentRecord.openingSeedBottles || 0) : 0, first: true };
   }
   function refresh() {
     return Promise.all([MDB.all('shops'), MDB.all('records')]).then(function (data) {
@@ -93,56 +82,29 @@
       history();
     });
   }
-  /* One-time compatibility migration for IndexedDB/Cloud rows created by the old
-     per-shop stock model. Rebuild every saved balance in global timestamp order. */
-  function rebuildGlobalLedger() {
-    return MDB.all('records').then(function (stored) {
-      var normalized = MaxoneStock.normalizeLedger(stored);
-      var recalculated = MaxoneStock.recalculate(normalized);
-      var changed = false;
-      var rows = recalculated.map(function (result) {
-        var original = stored.filter(function (item) { return item.id === result.id; })[0] || {};
-        var copy = {};
-        Object.keys(result).forEach(function (key) { copy[key] = result[key]; });
-        if (Number(original.openingBottles || 0) !== result.openingBottles ||
-            Number(original.closingBottles || 0) !== result.closingBottles ||
-            Number(original.openingSeedBottles || 0) !== Number(result.openingSeedBottles || 0) ||
-            Number(original.adjustmentBottles || 0) !== result.adjustmentBottles) changed = true;
-        return copy;
-      });
-      return MDB.write('records', rows).then(function () {
-        records = rows;
-        return { changed: changed, records: rows };
-      });
-    });
-  }
-
-  function updateOpening() {
-    var current=records.filter(function(r){return r.id===editId;})[0], prev=records.filter(function(r){return r.id!==editId&&(r.date+String(r.time||'00:00'))<=($('date').value+String($('time').value||'00:00'));}).sort(function(a,b){return String(a.date+a.time).localeCompare(String(b.date+b.time));}).pop();
-    ['cases','packs','bottles'].forEach(function(k){var id=k==='cases'?'c':k==='packs'?'p':'b',key=k==='bottles'?'loose_bottles':k,v=prev?prev['closing_'+key]:(current?current['opening_'+key]:null);$('o'+id).value=v==null?'':v;if(current)$('s'+id).value=current['opening_'+key]==null?'':current['opening_'+key];});
-    $('seedBox').classList.toggle('hidden',!!prev);$('firstNote').classList.toggle('hidden',!!prev);calculate();
+  function previousClosingForDate(date) {
+    var previous = records.filter(function (record) { return record.id !== editId && record.date < date; })
+      .sort(MaxoneStock.compareRecords).pop();
+    return previous ? { cases: previous.closing_cases, packs: previous.closing_packs, bottles: previous.closing_loose_bottles } : null;
   }
   function getCalculation() {
-    var keys=['cases','packs','bottles'],ids=['c','p','b'];
-    var r={opening:{},sales:{},refill:{},closing:{},enabled:$('calcEnabled').checked};
-    keys.forEach(function(k,i){
-      var key=k==='bottles'?'loose_bottles':k;
-      r.opening[k]=MaxoneUnitStock.number($('o'+ids[i]).value);
-      if(r.opening[k]===null&&!$('seedBox').classList.contains('hidden'))r.opening[k]=MaxoneUnitStock.number($('s'+ids[i]).value);
-      r.sales[k]=MaxoneUnitStock.number($('v'+ids[i]).value);
-      r.refill[k]=MaxoneUnitStock.number($('f'+ids[i]).value);
-      if(r.enabled){
-        r.closing[k]=(r.opening[k]===null||r.sales[k]===null||r.refill[k]===null)?null:r.opening[k]+r.refill[k]-r.sales[k];
-        if(r.closing[k]!==null&&r.closing[k]<0)throw new Error('ยอดขายเกิน Stock '+k);
-      }else r.closing[k]=override?MaxoneUnitStock.number($('x'+ids[i]).value):null;
+    var ids=['c','p','b'], keys=['cases','packs','bottles'];
+    var result={opening:{},sales:{},closing:{},enabled:$('closingAuto').checked};
+    keys.forEach(function(key,index){
+      result.opening[key]=MaxoneUnitStock.number($('o'+ids[index]).value);
+      result.sales[key]=MaxoneUnitStock.number($('v'+ids[index]).value);
+      result.closing[key]=MaxoneUnitStock.number($('x'+ids[index]).value);
     });
-    return r;
+    if(result.enabled){
+      result.closing=MaxoneStock.calculateClosingByUnit(previousClosingForDate($('date').value),result.sales);
+      keys.forEach(function(key,index){$('x'+ids[index]).value=result.closing[key]==null?'':result.closing[key];});
+    }
+    return result;
   }
-  function renderReview(calc,closingUnits){$('review').innerHTML='<div><span>ร้านค้า</span><b>'+escapeHtml(shopName($('shop').value))+'</b></div><div><span>ยอดขาย</span><b>'+unitText({cases:calc.sales.cases||0,packs:calc.sales.packs||0,bottles:calc.sales.bottles||0})+'</b></div><div><span>Stock คงเหลือ</span><b>'+unitText({cases:closingUnits.cases||0,packs:closingUnits.packs||0,bottles:closingUnits.bottles||0})+'</b></div><div><span>วันหมดอายุ</span><b>'+escapeHtml(thaiDate($('expiry').value))+'</b></div>';}
-  function calculate(){try{var c=getCalculation(),v=c.closing;$('cc').textContent=v.cases==null?'':v.cases;$('cp').textContent=v.packs==null?'':v.packs;$('cb').textContent=v.bottles==null?'':v.bottles;$('delta').textContent=c.enabled?'คำนวณแยกหน่วย':'ปิดการคำนวณอัตโนมัติ';renderReview(c,v);$('error').classList.add('hidden');return true;}catch(e){$('error').textContent=e.message;$('error').classList.remove('hidden');return false;}}
+  function renderReview(calc,closingUnits){$('review').innerHTML='<div><span>ร้านค้า</span><b>'+escapeHtml(shopName($('shop').value))+'</b></div><div><span>ยอดขาย</span><b>'+unitText(calc.sales)+'</b></div><div><span>Stock คงเหลือ</span><b>'+unitText(closingUnits)+'</b></div><div><span>วันหมดอายุ</span><b>'+escapeHtml(thaiDate($('expiry').value))+'</b></div>';}
+  function calculate(){try{var c=getCalculation();['c','p','b'].forEach(function(id){$('x'+id).disabled=c.enabled;});renderReview(c,c.closing);$('error').classList.add('hidden');return true;}catch(e){$('error').textContent=e.message;$('error').classList.remove('hidden');return false;}}
   function resetForm() {
     editId = null;
-    override = false;
     $('shop').disabled = false;
     $('addShop').disabled = false;
     $('rid').value = '';
@@ -151,39 +113,22 @@
     $('time').value = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
     $('expiry').value = '';
     $('shop').value = '';
-    $('calcEnabled').checked = false;
-    ['fc','fp','fb','vc','vp','vb','sc','sp','sb','xc','xp','xb'].forEach(function (id) { $(id).value = 0; });
-    $('overrideBox').classList.add('hidden'); $('adjustReasonBox').classList.add('hidden'); $('adjustReason').value='';
-    $('editBalance').textContent = 'แก้ไขยอดสต๊อกคงเหลือ';
+    $('closingAuto').checked = false;
+    ['vc','vp','vb','xc','xp','xb'].forEach(function (id) { $(id).value = id.charAt(0)==='v' ? 0 : ''; });
     $('save').textContent = 'บันทึกยอดขาย';
-    updateOpening();
+    ['oc','op','ob'].forEach(function(id){$(id).value='';});
+    calculate();
   }
   function cloudQueueDelete(recordId) {
     return { id: 'delete-record-' + recordId, op: 'delete', entity: 'record', entityId: recordId, createdAt: Date.now() };
   }
   function persistChange(candidate,oldRecord,action){
-    var affected=records.filter(function(r){return r.id!==candidate.id;});
-    if(action!=='delete')affected.push(candidate);
-    affected.sort(function(a,b){return String(a.date+(a.time||'00:00')).localeCompare(String(b.date+(b.time||'00:00')));});
-    var previous=null;
-    affected.forEach(function(r){
-      if(r.stockCalculationEnabled){
-        ['cases','packs','bottles'].forEach(function(k){
-          var key=k==='bottles'?'loose_bottles':k;
-          var openingValue=previous?previous['closing_'+key]:r['opening_'+key];
-          var salesValue=r['sales_'+key];
-          r['opening_'+key]=openingValue==null?null:Number(openingValue);
-          r['closing_'+key]=openingValue==null||salesValue==null?null:Number(openingValue)+Number(r['refill_'+key]||0)-Number(salesValue);
-          if(r['closing_'+key]!=null&&r['closing_'+key]<0)throw new Error('ยอดขายเกิน Stock '+k+' ในรายการ '+r.date);
-        });
-      }
-      previous=r;
-    });
+    var affected=action==='delete'?[]:[candidate];
     var audit={id:uuid(),recordId:candidate.id,action:action,beforeData:oldRecord||null,afterData:action==='delete'?null:candidate,createdAt:Date.now()};
     var queue=action==='delete'?cloudQueueDelete(candidate.id):null;
     return MDB.applyRecordChange(affected,action==='delete'?candidate.id:null,audit,queue).then(refresh);
   }
-  function saveRecord(event){event.preventDefault();try{var shopId=$('shop').value;if(!shopId)throw new Error('กรุณาเลือกร้านค้า');var c=getCalculation(),old=records.filter(function(r){return r.id===editId;})[0]||null,now=Date.now(),row={id:editId||uuid(),shopId:shopId,date:$('date').value,time:$('time').value,transactionAt:transactionTimestamp($('date').value,$('time').value),createdAt:old?old.createdAt:now,updatedAt:now,expiryDate:$('expiry').value||null,stockCalculationEnabled:c.enabled,opening_cases:c.opening.cases,opening_packs:c.opening.packs,opening_loose_bottles:c.opening.bottles,sales_cases:c.sales.cases,sales_packs:c.sales.packs,sales_loose_bottles:c.sales.bottles,closing_cases:c.closing.cases,closing_packs:c.closing.packs,closing_loose_bottles:c.closing.bottles,refill_cases:number('fc'),refill_packs:number('fp'),refill_loose_bottles:number('fb'),openingSeedBottles:0,refillBottles:0,salesBottles:0,closingBottles:0,sourceType:'app',adjustmentReason:override?$('adjustReason').value.trim():null};if(override&&!row.adjustmentReason)throw new Error('กรุณาระบุเหตุผลที่ปรับยอดสต๊อก');persistChange(row,old,old?'update':'create').then(function(){resetForm();setStatus('● บันทึกในเครื่องแล้ว',false);if(session&&navigator.onLine)syncAll();}).catch(showError);}catch(e){showError(e);}}
+  function saveRecord(event){event.preventDefault();try{var shopId=$('shop').value;if(!shopId)throw new Error('กรุณาเลือกร้านค้า');var c=getCalculation(),old=records.filter(function(r){return r.id===editId;})[0]||null,now=Date.now(),row={id:editId||uuid(),shopId:shopId,date:$('date').value,time:$('time').value,transactionAt:transactionTimestamp($('date').value,$('time').value),createdAt:old?old.createdAt:now,updatedAt:now,expiryDate:$('expiry').value||null,stockCalculationEnabled:c.enabled,opening_cases:c.opening.cases,opening_packs:c.opening.packs,opening_loose_bottles:c.opening.bottles,sales_cases:c.sales.cases,sales_packs:c.sales.packs,sales_loose_bottles:c.sales.bottles,closing_cases:c.closing.cases,closing_packs:c.closing.packs,closing_loose_bottles:c.closing.bottles,refill_cases:0,refill_packs:0,refill_loose_bottles:0,openingSeedBottles:0,refillBottles:0,salesBottles:0,closingBottles:0,sourceType:'app',adjustmentReason:null};persistChange(row,old,old?'update':'create').then(function(){resetForm();setStatus('● บันทึกในเครื่องแล้ว',false);window.alert('บันทึกรายการเรียบร้อย');if(session&&navigator.onLine)syncAll();}).catch(showError);}catch(e){showError(e);}}
   function showError(error) {
     $('error').textContent = error && error.message ? error.message : String(error);
     $('error').classList.remove('hidden');
@@ -199,15 +144,10 @@
     $('time').value = record.time || (record.transactionAt ? (function (d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }(new Date(record.transactionAt))) : '00:00');
     $('expiry').value = record.expiryDate || '';
     $('shop').value = record.shopId;
-    $('calcEnabled').checked=!!record.stockCalculationEnabled;
-    setUnits('f',{cases:record.refill_cases||0,packs:record.refill_packs||0,bottles:record.refill_loose_bottles||0});
+    $('closingAuto').checked=false;
+    setUnits('o',{cases:record.opening_cases==null?'':record.opening_cases,packs:record.opening_packs==null?'':record.opening_packs,bottles:record.opening_loose_bottles==null?'':record.opening_loose_bottles});
     setUnits('v',{cases:record.sales_cases==null?'':record.sales_cases,packs:record.sales_packs==null?'':record.sales_packs,bottles:record.sales_loose_bottles==null?'':record.sales_loose_bottles});
-    updateOpening();
-    override = !record.stockCalculationEnabled &&
-      (record.closing_cases != null || record.closing_packs != null || record.closing_loose_bottles != null);
-    $('overrideBox').classList.toggle('hidden', !override); $('adjustReasonBox').classList.toggle('hidden',!override); if(override)$('adjustReason').value=record.adjustmentReason||'';
-    if (override) setUnits('x', {cases:record.closing_cases,packs:record.closing_packs,bottles:record.closing_loose_bottles});
-    $('editBalance').textContent = override ? 'ยกเลิกแก้ไขยอด' : 'แก้ไขยอดสต๊อกคงเหลือ';
+    setUnits('x',{cases:record.closing_cases==null?'':record.closing_cases,packs:record.closing_packs==null?'':record.closing_packs,bottles:record.closing_loose_bottles==null?'':record.closing_loose_bottles});
     $('save').textContent = 'บันทึกการแก้ไข';
     calculate();
     document.querySelector('[data-tab="entry"]').click();
@@ -238,7 +178,7 @@
   }
   function deleteRecord(recordId) {
     var record = records.filter(function (item) { return item.id === recordId; })[0];
-    if (!record || !window.confirm('ลบรายการ ' + thaiDate(record.date) + ' ร้าน ' + shopName(record.shopId) + '? ระบบจะคำนวณ Stock กลางของรายการถัดไปทั้งหมดใหม่')) return;
+    if (!record || !window.confirm('ลบรายการ ' + thaiDate(record.date) + ' ร้าน ' + shopName(record.shopId) + '?')) return;
     persistChange(record, record, 'delete').then(function () {
       setStatus('● ลบรายการในเครื่องแล้ว', false);
       if (session && navigator.onLine) syncAll();
@@ -303,7 +243,7 @@
       $('shopEditMessage').textContent = 'ลบร้านค้าเรียบร้อยแล้ว';
       setStatus('● ลบร้านค้าแล้ว', false);
       renderShopChoices();
-      updateOpening();
+      calculate();
     }).catch(function (error) {
       $('shopEditMessage').textContent = error.message || 'ลบร้านค้าไม่สำเร็จ';
     });
@@ -343,7 +283,7 @@
       return refresh();
     }).then(function () {
       $('shop').value = shop.id;
-      updateOpening();
+      calculate();
       closeShopEditor();
       setStatus(shopEditorMode === 'create' ? '● เพิ่มร้านค้าในเครื่องแล้ว' : '● แก้ไขชื่อร้านในเครื่องแล้ว', false);
       if (session && navigator.onLine) return syncAll();
@@ -385,16 +325,28 @@
   function reportTotals(rows, key) {
     return rows.reduce(function (sum, r) { var n = Number(r[key]); return sum + (isFinite(n) ? n : 0); }, 0);
   }
+  function salesTotalCells(rows) {
+    var values = {
+      cases: reportTotals(rows, 'sales_cases'),
+      packs: reportTotals(rows, 'sales_packs'),
+      bottles: reportTotals(rows, 'sales_loose_bottles')
+    };
+    return ['cases','packs','bottles'].map(function (key) {
+      var unit = { cases: 0, packs: 0, bottles: 0 };
+      unit[key] = values[key];
+      return MaxoneStock.formatUnitTotals(unit);
+    });
+  }
   function exportExcel() {
     var report = reportRows();
     if (!report) return;
     if (!window.XLSX) { window.alert('ยังไม่มีไลบรารี Excel กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่'); return; }
     var rows = report.rows;
     var aoa = [
-      ['แบบฟอร์มสรุปยอดขายทีมหน่วยรถ เขตภาคกลาง'],
+      ['แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.'],
       ['ทีม: หมอก, อาม,กุ๊กไก่, อาชิ'],
       ['วัน-เดือน-ปี','ชื่อร้าน/จังหวัด','Stock ตั้งต้น','','','สต๊อกคงเหลือ','','','วันหมดอายุ','ยอดขาย','',''],
-      ['','','ลัง','แพ็ค','ขวด','ลัง','แพ็ค','ขวด','','ลัง','แพ็ก','ขวด']
+      ['','','ลัง','แพ็ค','ขวด','ลัง','แพ็ค','ขวด','','ลัง','แพ็ค','ขวด']
     ];
     rows.forEach(function (r) {
       aoa.push([
@@ -406,11 +358,8 @@
       ]);
     });
     var totalRow = aoa.length + 1;
-    aoa.push(['รวมยอดขาย','','','','','','','','',
-      { f: 'SUM(J5:J' + (totalRow - 1) + ')' },
-      { f: 'SUM(K5:K' + (totalRow - 1) + ')' },
-      { f: 'SUM(L5:L' + (totalRow - 1) + ')' }
-    ]);
+    var totalCells = salesTotalCells(rows);
+    aoa.push(['รวมยอดขาย','','','','','','','','',totalCells[0],totalCells[1],totalCells[2]]);
     var ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!merges'] = [
       {s:{r:0,c:0},e:{r:0,c:11}}, {s:{r:1,c:0},e:{r:1,c:11}},
@@ -419,12 +368,11 @@
       {s:{r:2,c:8},e:{r:3,c:8}}, {s:{r:2,c:9},e:{r:2,c:11}},
       {s:{r:totalRow-1,c:0},e:{r:totalRow-1,c:8}}
     ];
-    ws['!cols'] = [{wch:18.6},{wch:30},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:17.5},{wch:13},{wch:13},{wch:13}];
+    ws['!cols'] = [{wch:18.6},{wch:53.3},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:17.5},{wch:13},{wch:13},{wch:13}];
     ws['!rows'] = [{hpt:27},{hpt:27},{hpt:27},{hpt:27}].concat(rows.map(function(){return {hpt:23.25};}),[{hpt:31.5}]);
     ws['!pageSetup'] = { paperSize: 9, orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 };
     ws['!pageMargins'] = { left:0.25,right:0.25,top:0.25,bottom:0.25,header:0.1,footer:0.1 };
     ws['!printOptions'] = { horizontalCentered:true };
-    ws['!autofilter'] = { ref:'A4:L' + (rows.length+4) };
     var border = { top:{style:'thin',color:{rgb:'FF808080'}},bottom:{style:'thin',color:{rgb:'FF808080'}},left:{style:'thin',color:{rgb:'FF808080'}},right:{style:'thin',color:{rgb:'FF808080'}} };
     function styleRange(r1,r2,c1,c2,style) {
       for(var r=r1;r<=r2;r++) for(var c=c1;c<=c2;c++) {
@@ -433,13 +381,13 @@
         ws[ref].s=style;
       }
     }
-    var titleStyle={font:{name:'Arial',sz:18,bold:true},alignment:{horizontal:'center',vertical:'center'},fill:{fgColor:{rgb:'FFFFFFFF'}}};
-    var teamStyle={font:{name:'Arial',sz:16},alignment:{horizontal:'center',vertical:'center'}};
-    var headBlue={font:{name:'Arial',sz:13,bold:true,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:'FF073763'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:border};
-    var subBlue={font:{name:'Arial',sz:12,bold:true,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:'FF4A86E8'}},alignment:{horizontal:'center',vertical:'center'},border:border};
+    var titleStyle={font:{name:'Helvetica Neue',sz:18,bold:true},alignment:{horizontal:'center',vertical:'center'},fill:{fgColor:{rgb:'FFFFFFFF'}}};
+    var teamStyle={font:{name:'Segoe UI',sz:18},alignment:{horizontal:'center',vertical:'center'}};
+    var headBlue={font:{name:'Segoe UI',sz:18,bold:true,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:'FF073763'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:border};
+    var subBlue={font:{name:'Segoe UI',sz:18,bold:true,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:'FF4A86E8'}},alignment:{horizontal:'center',vertical:'center'},border:border};
     var dataStyle={font:{name:'Arial',sz:11},alignment:{horizontal:'center',vertical:'center'},border:border};
     var shopStyle={font:{name:'Arial',sz:11},alignment:{horizontal:'left',vertical:'center'},border:border};
-    var totalStyle={font:{name:'Arial',sz:13,bold:true},alignment:{horizontal:'center',vertical:'center'},border:border};
+    var totalStyle={font:{name:'Segoe UI',sz:18,bold:true},alignment:{horizontal:'center',vertical:'center'},border:border};
     styleRange(0,0,0,11,titleStyle); styleRange(1,1,0,11,teamStyle);
     styleRange(2,3,0,11,headBlue); styleRange(3,3,2,7,subBlue); styleRange(3,3,9,11,subBlue);
     styleRange(4,totalRow-2,0,11,dataStyle);
@@ -459,10 +407,10 @@
         r.sales_cases,r.sales_packs,r.sales_loose_bottles];
       return '<tr>'+cells.map(function(v){return '<td>'+escapeHtml(v==null?'':v)+'</td>';}).join('')+'</tr>';
     }).join('');
-    var sums=[reportTotals(rows,'sales_cases'),reportTotals(rows,'sales_packs'),reportTotals(rows,'sales_loose_bottles')];
+    var totals=salesTotalCells(rows);
     var w=window.open('','_blank');
     if(!w){window.alert('เบราว์เซอร์บล็อกหน้าต่างรายงาน กรุณาอนุญาต Pop-up แล้วลองใหม่');return;}
-    var html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>แบบฟอร์มสรุปยอดขายทีมหน่วยรถ เขตภาคกลาง</title><style>'+
+    var html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.</title><style>'+
       '@page{size:A4 landscape;margin:0.25in}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,Tahoma,"Noto Sans Thai",sans-serif;color:#111}'+
       '.sheet{width:100%;}h1,h2{margin:0;text-align:center;font-weight:700}h1{font-size:18pt;line-height:27pt}h2{font-size:16pt;line-height:27pt;font-weight:400}'+
       'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10pt}th,td{border:1px solid #808080;text-align:center;vertical-align:middle;padding:3px 2px;overflow-wrap:anywhere}'+
@@ -470,18 +418,18 @@
       'tfoot td{height:31.5pt;font-weight:bold;font-size:11pt}tfoot td:first-child{text-align:right}'+
       'col.a{width:9%}col.b{width:22%}col.c, col.d, col.e, col.f, col.g, col.h, col.j, col.k, col.l{width:6%}col.i{width:9%}'+
       '@media print{.sheet{break-inside:avoid}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
-      '</style></head><body><div class="sheet"><h1>แบบฟอร์มสรุปยอดขายทีมหน่วยรถ เขตภาคกลาง</h1><h2>ทีม: หมอก, อาม,กุ๊กไก่, อาชิ</h2>'+
+      '</style></head><body><div class="sheet"><h1>แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.</h1><h2>ทีม: หมอก, อาม,กุ๊กไก่, อาชิ</h2>'+
       '<table><colgroup><col class="a"><col class="b"><col class="c"><col class="d"><col class="e"><col class="f"><col class="g"><col class="h"><col class="i"><col class="j"><col class="k"><col class="l"></colgroup>'+
       '<thead><tr><th rowspan="2">วัน-เดือน-ปี</th><th rowspan="2">ชื่อร้าน/จังหวัด</th><th colspan="3">Stock ตั้งต้น</th><th colspan="3">สต๊อกคงเหลือ</th><th rowspan="2">วันหมดอายุ</th><th colspan="3">ยอดขาย</th></tr>'+
-      '<tr class="sub"><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ก</th><th>ขวด</th></tr></thead><tbody>'+body+'</tbody>'+
-      '<tfoot><tr><td colspan="9">รวมยอดขาย</td><td>'+sums[0]+'</td><td>'+sums[1]+'</td><td>'+sums[2]+'</td></tr></tfoot></table></div>'+
+      '<tr class="sub"><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th></tr></thead><tbody>'+body+'</tbody>'+
+      '<tfoot><tr><td colspan="9">รวมยอดขาย</td><td>'+escapeHtml(totals[0])+'</td><td>'+escapeHtml(totals[1])+'</td><td>'+escapeHtml(totals[2])+'</td></tr></tfoot></table></div>'+
       '<script>window.onload=function(){setTimeout(function(){window.print()},250)};<\/script></body></html>';
     w.document.open();w.document.write(html);w.document.close();
   }
 
   /* Small XHR client: avoids modern JS syntax in the app shell for older iOS Safari. */
 
-  
+
   function request(path, method, body, token, extraHeaders) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
@@ -719,14 +667,7 @@
   function init() {
     loadSession();
     renderAccount();
-    MDB.open().then(function () {
-      if (localStorage.getItem('maxone-v040-data-reset') === 'done') return Promise.resolve();
-      return MDB.clearAll().then(function () {
-        localStorage.setItem('maxone-v040-data-reset', 'done');
-      });
-    }).then(function () {
-      return MDB.all('shops');
-    }).then(function (existing) {
+    MDB.open().then(function () { return MDB.all('shops'); }).then(function (existing) {
       if (existing.length) return refresh();
       if (session && navigator.onLine) {
         return syncAll().then(function () {
@@ -756,11 +697,10 @@
       };
     });
     $('form').onsubmit = saveRecord;
-    $('calcEnabled').onchange = calculate;
-    $('shop').onchange = updateOpening;
-    $('date').onchange = updateOpening;
-    $('time').onchange = updateOpening;
-    $('calcEnabled').onchange = function(){calculate();};
+    $('shop').onchange = calculate;
+    $('date').onchange = calculate;
+    $('time').onchange = calculate;
+    $('closingAuto').onchange = calculate;
     $('addShop').onclick = addShop;
     $('editShop').onclick = function () { openShopEditor('edit'); };
     $('closeShopEditor').onclick = closeShopEditor;
@@ -775,23 +715,7 @@
     $('saveShopEdit').onclick = saveShopEdit;
     $('shopEditor').onclick = function (event) { if (event.target === $('shopEditor')) closeShopEditor(); };
     $('reset').onclick = resetForm;
-    $('editBalance').onclick = function () {
-      if (!override) {
-        var current = records.filter(function (r) { return r.id === editId; })[0];
-        var calculated = getCalculation();
-        var initial = calculated.enabled ? calculated.closing : (current ? {
-          cases:current.closing_cases, packs:current.closing_packs, bottles:current.closing_loose_bottles
-        } : {cases:null,packs:null,bottles:null});
-        override = true;
-        setUnits('x', initial);
-      } else {
-        override = false;
-      }
-      $('overrideBox').classList.toggle('hidden', !override); $('adjustReasonBox').classList.toggle('hidden',!override);
-      $('editBalance').textContent = override ? 'ยกเลิกแก้ไขยอด' : 'แก้ไขยอดสต๊อกคงเหลือ';
-      calculate();
-    };
-    ['fc','fp','fb','vc','vp','vb','sc','sp','sb','xc','xp','xb','oc','op','ob'].forEach(function (id) { $(id).oninput = calculate; });
+    ['vc','vp','vb','xc','xp','xb','oc','op','ob'].forEach(function (id) { $(id).oninput = calculate; });
     $('list').onclick = function (event) {
       var target = event.target;
       if (target.getAttribute('data-edit')) loadRecord(target.getAttribute('data-edit'));

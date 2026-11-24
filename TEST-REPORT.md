@@ -65,3 +65,13 @@ The test suite validates the calculation engine, not every end-to-end browser wo
 - Supabase Cloud remains empty after reset: shops 0, sales_records 0, sync_tombstones 0.
 - GitHub commit's Vercel check: success.
 - End-to-end email confirmation still requires Supabase Dashboard URL Configuration and a real confirmation email test.
+
+
+## v0.9.5 checks
+
+- JavaScript parse checks for `src/app.js` and `src/stock-engine.js`: passed.
+- `tests/stock-engine.test.js`: 7 assertions passed, including same-unit closing-stock subtraction, blank missing unit balances, negative-balance rejection, chronological ordering, and omitting zero sales units from totals.
+- `git diff --check`: passed.
+- Confirmed the export code preserves the template's 12 columns, merged title/header groups, separate total cells, blue grouped headings, A4 landscape setup, and total row styling.
+- Supabase schema and migrations were not changed. The startup data-clearing step was removed; no production data migration or reset was run.
+- The Excel template and two supplied screenshots were inspected. A full browser test with production account data, Excel/Numbers desktop rendering, and physical iPhone testing were not run.
