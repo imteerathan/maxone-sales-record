@@ -479,7 +479,7 @@
       stock_calculation_enabled: !!record.stockCalculationEnabled,
       opening_seed_bottles: record.openingSeedBottles || 0, opening_bottles: record.openingBottles || 0,
       refill_crates: refill.cases, refill_packs: refill.packs, refill_bottles: refill.bottles,
-      sales_crates: sales.cases, sales_packs: sales.packs, sales_bottles: sales.bottles,
+      sales_crates: sales.cases, sales_packs: record.sales_packs, sales_bottles: 0,
       stock_adjustment_bottles: record.adjustmentBottles || 0,
       adjustment_reason: record.adjustmentBottles ? 'แก้ไขยอดคงเหลือจากหน้าบันทึก' : null,
       expiry_date: record.expiryDate || null, created_by: userId,
