@@ -88,7 +88,7 @@
       <h2>02 · ส่งออกรายงาน</h2>
       <label for="from">วันที่เริ่มต้น</label><input id="from" type="date">
       <label for="to">วันที่สิ้นสุด</label><input id="to" type="date">
-      <button type="button" id="week" class="link">ใช้ช่วงวันจันทร์ถึงวันเสาร์ที่ผ่านมา</button>
+      <div class="date-quick-actions" role="group" aria-label="เลือกช่วงวันที่ด่วน"><button type="button" id="today" class="link">วันนี้</button><button type="button" id="week" class="link">รายสัปดาห์</button></div>
       <button type="button" id="export" class="primary wide">ดาวน์โหลด Excel (.xlsx)</button>
       <button type="button" id="exportPdf" class="secondary wide">พิมพ์ / บันทึก PDF</button>
       <p class="hint">รายงานหลักคงคอลัมน์ A-L และมีชีตรายละเอียดการเติม/ปรับสต๊อก</p>
@@ -123,6 +123,6 @@
 </div>
 <script src="src/stock-engine.js?v=10"></script>
 <script src="src/db.js"></script>
-<script src="src/app.js?v=11"></script>
+<script src="src/app.js?v=12"></script>
 </body>
 </html>
