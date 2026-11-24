@@ -196,7 +196,7 @@
     $('range').textContent = (allMode ? 'รายการทั้งหมด' : 'ย้อนหลัง 60 วัน') + ' · ' + visible.length + ' รายการ';
     $('list').innerHTML = visible.length ? visible.map(function (record) {
       return '<article class="history-card"><small>' + escapeHtml(thaiDate(record.date)) + ' · ' + escapeHtml(record.time || '00:00') + '</small><strong>' + escapeHtml(shopName(record.shopId)) + '</strong>' +
-        '<div class="hint">ขาย ' + unitText(MaxoneStock.bottlesToUnits(record.salesBottles || 0)) + '<br>คงเหลือ ' + unitText(MaxoneStock.bottlesToUnits(record.closingBottles || 0)) + '</div>' +
+        '<div class="hint">ขาย ' + unitText({cases:record.sales_cases||0,packs:record.sales_packs||0,bottles:record.sales_loose_bottles||0}) + '<br>คงเหลือ ' + unitText({cases:record.closing_cases||0,packs:record.closing_packs||0,bottles:record.closing_loose_bottles||0}) + '</div>' +
         '<div class="history-actions"><button type="button" data-edit="' + escapeHtml(record.id) + '">แก้ไข</button><button type="button" class="del" data-del="' + escapeHtml(record.id) + '">ลบ</button></div></article>';
     }).join('') : '<div class="empty">ยังไม่มีรายการ</div>';
   }
