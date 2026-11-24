@@ -176,7 +176,7 @@
           var openingValue=previous?previous['closing_'+key]:r['opening_'+key];
           var salesValue=r['sales_'+key];
           r['opening_'+key]=openingValue==null?null:Number(openingValue);
-          r['closing_'+key]=openingValue==null||salesValue==null?null:Number(openingValue)-Number(salesValue);
+          r['closing_'+key]=openingValue==null||salesValue==null?null:Number(openingValue)+Number(r['refill_'+key]||0)-Number(salesValue);
           if(r['closing_'+key]!=null&&r['closing_'+key]<0)throw new Error('ยอดขายเกิน Stock '+k+' ในรายการ '+r.date);
         });
       }
@@ -226,7 +226,7 @@
     $('range').textContent = (allMode ? 'รายการทั้งหมด' : 'ย้อนหลัง 60 วัน') + ' · ' + visible.length + ' รายการ';
     $('list').innerHTML = visible.length ? visible.map(function (record) {
       return '<article class="history-card"><small>' + escapeHtml(thaiDate(record.date)) + ' · ' + escapeHtml(record.time || '00:00') + '</small><strong>' + escapeHtml(shopName(record.shopId)) + '</strong>' +
-        '<div class="hint">ขาย ' + unitText({cases:record.sales_cases||0,packs:record.sales_packs||0,bottles:record.sales_loose_bottles||0}) + '<br>คงเหลือ ' + unitText({cases:record.closing_cases||0,packs:record.closing_packs||0,bottles:record.closing_loose_bottles||0}) + '</div>' +
+        '<div class="hint">ขาย ' + unitText({cases:record.sales_cases==null?'—':record.sales_cases,packs:record.sales_packs==null?'—':record.sales_packs,bottles:record.sales_loose_bottles==null?'—':record.sales_loose_bottles}) + '<br>คงเหลือ ' + unitText({cases:record.closing_cases==null?'—':record.closing_cases,packs:record.closing_packs==null?'—':record.closing_packs,bottles:record.closing_loose_bottles==null?'—':record.closing_loose_bottles}) + '</div>' +
         '<div class="history-actions"><button type="button" data-edit="' + escapeHtml(record.id) + '">แก้ไข</button><button type="button" class="del" data-del="' + escapeHtml(record.id) + '">ลบ</button></div></article>';
     }).join('') : '<div class="empty">ยังไม่มีรายการ</div>';
   }
@@ -369,12 +369,14 @@
     ];
     var detail = [['วันที่','เวลา','ชื่อร้าน','เติมลัง','เติมแพ็ค','เติมขวด','ปรับสต๊อก (ขวด)','ยอดคงเหลือก่อนปรับ (ขวด)','ยอดคงเหลือจริง (ขวด)','ประเภทการบันทึก']];
     rows.forEach(function (record) {
-      var start = MaxoneStock.bottlesToUnits(record.openingBottles || 0);
-      var close = MaxoneStock.bottlesToUnits(record.closingBottles || 0);
-      var sales = MaxoneStock.bottlesToUnits(record.salesBottles || 0);
-      var refill = MaxoneStock.bottlesToUnits(record.refillBottles || 0);
-      main.push([excelDate(record.date), shopName(record.shopId), start.cases, start.packs, start.bottles, close.cases, close.packs, close.bottles, record.expiryDate ? excelDate(record.expiryDate) : '', sales.cases, sales.packs, sales.bottles]);
-      detail.push([excelDate(record.date), record.time || '00:00', shopName(record.shopId), refill.cases, refill.packs, refill.bottles, record.adjustmentBottles || 0, record.calculatedClosingBottles || 0, record.closingBottles || 0, record.sourceType || 'app']);
+      main.push([excelDate(record.date),shopName(record.shopId),
+        record.opening_cases,record.opening_packs,record.opening_loose_bottles,
+        record.closing_cases,record.closing_packs,record.closing_loose_bottles,
+        record.expiryDate?excelDate(record.expiryDate):'',
+        record.sales_cases,record.sales_packs,record.sales_loose_bottles]);
+      detail.push([excelDate(record.date),record.time||'00:00',shopName(record.shopId),
+        record.refill_cases,record.refill_packs,record.refill_loose_bottles,
+        '', '', '', record.sourceType||'app']);
     });
     var book = XLSX.utils.book_new();
     var sheet = XLSX.utils.aoa_to_sheet(main);
