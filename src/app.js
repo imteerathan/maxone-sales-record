@@ -10,6 +10,7 @@
   var opening = 0;
   var session = null;
   var syncBusy = false;
+  var shopEditorMode = 'edit';
   var API_URL = 'https://dbyedilzgeuksjznnyhe.supabase.co';
   var API_KEY = 'sb_publishable_5U54VRoyr5LtWdEBh86J5A_rWxtMfzn';
 
@@ -235,29 +236,23 @@
       if (session && navigator.onLine) syncAll();
     }).catch(showError);
   }
-  function addShop() {
-    var name = window.prompt('ชื่อร้านใหม่');
-    if (!name || !name.replace(/^\s+|\s+$/g, '')) return;
-    name = name.replace(/^\s+|\s+$/g, '');
-    if (shops.some(function (shop) { return shop.name.toLowerCase() === name.toLowerCase(); })) {
-      window.alert('มีร้านนี้อยู่แล้ว'); return;
-    }
-    var now = Date.now();
-    var shop = { id: uuid(), name: name, isActive: true, createdAt: now, updatedAt: now };
-    MDB.write('shops', shop).then(function () {
-      return refresh().then(function () { $('shop').value = shop.id; updateOpening(); });
-    }).then(function () {
-      if (session && navigator.onLine) syncAll();
-    }).catch(showError);
-  }
+  function addShop() { openShopEditor('create'); }
 
-  function openShopEditor() {
+  function openShopEditor(mode) {
+    shopEditorMode = mode || 'edit';
     $('shopEditor').classList.remove('hidden');
     $('shopSearch').value = '';
     $('shopEditName').value = '';
     $('shopEditId').value = '';
+    $('shopEditorTitle').textContent = shopEditorMode === 'create' ? 'เพิ่มร้านค้า' : 'จัดการชื่อร้านค้า';
+    $('shopEditLabel').textContent = shopEditorMode === 'create' ? 'ชื่อร้านใหม่' : 'ชื่อร้าน';
+    $('saveShopEdit').textContent = shopEditorMode === 'create' ? 'บันทึกร้านค้า' : 'บันทึกชื่อและเลือกร้านนี้';
+    $('shopEditMessage').textContent = shopEditorMode === 'create' ? 'กรอกชื่อร้านใหม่ แล้วกดบันทึก' : 'เลือกร้านที่ต้องการแก้ไข แล้วกดบันทึก';
+    $('shopChoices').classList.toggle('hidden', shopEditorMode === 'create');
+    $('shopSearch').classList.toggle('hidden', shopEditorMode === 'create');
+    $('shopSearchLabel').classList.toggle('hidden', shopEditorMode === 'create');
     renderShopChoices();
-    $('shopSearch').focus();
+    $('shopEditName').focus();
   }
   function closeShopEditor() { $('shopEditor').classList.add('hidden'); }
   function renderShopChoices() {
@@ -308,6 +303,14 @@
   function selectShopForEdit(shopId) {
     var shop = shops.filter(function (item) { return item.id === shopId; })[0];
     if (!shop) return;
+    shopEditorMode = 'edit';
+    $('shopEditorTitle').textContent = 'แก้ไขชื่อร้านค้า';
+    $('shopEditLabel').textContent = 'แก้ไขชื่อร้าน';
+    $('saveShopEdit').textContent = 'บันทึกชื่อและเลือกร้านนี้';
+    $('shopEditMessage').textContent = 'แก้ไขชื่อร้านที่เลือก แล้วกดบันทึก';
+    $('shopChoices').classList.remove('hidden');
+    $('shopSearch').classList.remove('hidden');
+    $('shopSearchLabel').classList.remove('hidden');
     $('shopEditId').value = shop.id;
     $('shopEditName').value = shop.name;
     renderShopChoices();
@@ -315,24 +318,31 @@
   }
   function saveShopEdit() {
     var shopId = $('shopEditId').value;
-    var shop = shops.filter(function (item) { return item.id === shopId; })[0];
-    var name = $('shopEditName').value.replace(/^\\s+|\\s+$/g, '');
-    if (!shop) { $('shopEditMessage').textContent = 'กรุณาเลือกร้านค้าที่ต้องการแก้ไข'; return; }
-    if (!name) { $('shopEditMessage').textContent = 'กรุณากรอกชื่อร้าน'; return; }
-    if (shops.some(function (item) { return item.id !== shopId && item.name.toLowerCase() === name.toLowerCase(); })) {
+    var existing = shops.filter(function (item) { return item.id === shopId; })[0];
+    var name = $('shopEditName').value.trim();
+    if (!name) { $('shopEditMessage').textContent = 'กรุณากรอกชื่อร้าน'; $('shopEditName').focus(); return; }
+    if (shops.some(function (item) { return item.id !== (shopEditorMode === 'edit' ? shopId : '') && item.name.trim().toLowerCase() === name.toLowerCase(); })) {
       $('shopEditMessage').textContent = 'มีชื่อร้านนี้อยู่แล้ว'; return;
     }
-    shop.name = name;
-    shop.updatedAt = Date.now();
+    if (shopEditorMode === 'edit' && !existing) { $('shopEditMessage').textContent = 'กรุณาเลือกร้านค้าที่ต้องการแก้ไข'; return; }
+    var now = Date.now();
+    var shop = shopEditorMode === 'create'
+      ? { id: uuid(), name: name, isActive: true, createdAt: now, updatedAt: now }
+      : Object.assign({}, existing, { name: name, updatedAt: now });
+    $('saveShopEdit').disabled = true;
+    $('shopEditMessage').textContent = 'กำลังบันทึกร้านค้า...';
     MDB.write('shops', shop).then(function () {
       return refresh();
     }).then(function () {
-      $('shop').value = shopId;
+      $('shop').value = shop.id;
       updateOpening();
       closeShopEditor();
-      setStatus('● แก้ไขชื่อร้านในเครื่องแล้ว', false);
-      if (session && navigator.onLine) syncAll();
-    }).catch(showError);
+      setStatus(shopEditorMode === 'create' ? '● เพิ่มร้านค้าในเครื่องแล้ว' : '● แก้ไขชื่อร้านในเครื่องแล้ว', false);
+      if (session && navigator.onLine) return syncAll();
+    }).catch(function (error) {
+      $('shopEditMessage').textContent = error.message || 'บันทึกร้านค้าไม่สำเร็จ';
+      showError(error);
+    }).then(function () { $('saveShopEdit').disabled = false; });
   }
 
   function suggestWeek() {
@@ -692,7 +702,7 @@
     $('time').onchange = updateOpening;
     $('calcEnabled').onchange = function(){calculate();};
     $('addShop').onclick = addShop;
-    $('editShop').onclick = openShopEditor;
+    $('editShop').onclick = function () { openShopEditor('edit'); };
     $('closeShopEditor').onclick = closeShopEditor;
     $('shopSearch').oninput = renderShopChoices;
     $('shopChoices').onclick = function (event) {
