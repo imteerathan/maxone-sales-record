@@ -126,8 +126,20 @@
     $('seedBox').classList.toggle('hidden',!!prev);$('firstNote').classList.toggle('hidden',!!prev);calculate();
   }
   function getCalculation() {
-    var keys=['cases','packs','bottles'],ids=['c','p','b'],r={opening:{},sales:{},closing:{},enabled:$('calcEnabled').checked};
-    keys.forEach(function(k,i){var key=k==='bottles'?'loose_bottles':k;r.opening[k]=MaxoneUnitStock.number($('o'+ids[i]).value);if(r.opening[k]===null&&!$('seedBox').classList.contains('hidden'))r.opening[k]=MaxoneUnitStock.number($('s'+ids[i]).value);r.sales[k]=MaxoneUnitStock.number($('v'+ids[i]).value);r.closing[k]=r.enabled?(r.opening[k]===null||r.sales[k]===null?null:r.opening[k]-r.sales[k]):(override?MaxoneUnitStock.number($('x'+ids[i]).value):null);if(r.enabled&&r.closing[k]!==null&&r.closing[k]<0)throw new Error('ยอดขายเกิน Stock '+k);});return r;
+    var keys=['cases','packs','bottles'],ids=['c','p','b'];
+    var r={opening:{},sales:{},refill:{},closing:{},enabled:$('calcEnabled').checked};
+    keys.forEach(function(k,i){
+      var key=k==='bottles'?'loose_bottles':k;
+      r.opening[k]=MaxoneUnitStock.number($('o'+ids[i]).value);
+      if(r.opening[k]===null&&!$('seedBox').classList.contains('hidden'))r.opening[k]=MaxoneUnitStock.number($('s'+ids[i]).value);
+      r.sales[k]=MaxoneUnitStock.number($('v'+ids[i]).value);
+      r.refill[k]=MaxoneUnitStock.number($('f'+ids[i]).value);
+      if(r.enabled){
+        r.closing[k]=(r.opening[k]===null||r.sales[k]===null||r.refill[k]===null)?null:r.opening[k]+r.refill[k]-r.sales[k];
+        if(r.closing[k]!==null&&r.closing[k]<0)throw new Error('ยอดขายเกิน Stock '+k);
+      }else r.closing[k]=override?MaxoneUnitStock.number($('x'+ids[i]).value):null;
+    });
+    return r;
   }
   function renderReview(calc,closingUnits){$('review').innerHTML='<div><span>ร้านค้า</span><b>'+escapeHtml(shopName($('shop').value))+'</b></div><div><span>ยอดขาย</span><b>'+unitText({cases:calc.sales.cases||0,packs:calc.sales.packs||0,bottles:calc.sales.bottles||0})+'</b></div><div><span>Stock คงเหลือ</span><b>'+unitText({cases:closingUnits.cases||0,packs:closingUnits.packs||0,bottles:closingUnits.bottles||0})+'</b></div><div><span>วันหมดอายุ</span><b>'+escapeHtml(thaiDate($('expiry').value))+'</b></div>';}
   function calculate(){try{var c=getCalculation(),v=c.closing;$('cc').textContent=v.cases==null?'':v.cases;$('cp').textContent=v.packs==null?'':v.packs;$('cb').textContent=v.bottles==null?'':v.bottles;$('delta').textContent=c.enabled?'คำนวณแยกหน่วย':'ปิดการคำนวณอัตโนมัติ';renderReview(c,v);$('error').classList.add('hidden');return true;}catch(e){$('error').textContent=e.message;$('error').classList.remove('hidden');return false;}}
@@ -142,6 +154,7 @@
     $('time').value = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
     $('expiry').value = '';
     $('shop').value = '';
+    $('calcEnabled').checked = false;
     ['fc','fp','fb','vc','vp','vb','sc','sp','sb','xc','xp','xb'].forEach(function (id) { $(id).value = 0; });
     $('overrideBox').classList.add('hidden');
     $('editBalance').textContent = 'แก้ไขยอดสต๊อกคงเหลือ';
