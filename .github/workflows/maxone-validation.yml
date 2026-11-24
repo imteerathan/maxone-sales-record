@@ -21,8 +21,8 @@ jobs:
         run: |
           node - <<'NODE'
           const assert = require('node:assert/strict');
-          require('./src/stock-engine.js');
-          const u = global.MaxoneUnitStock;
+          const engine = require('./src/stock-engine.js');
+          const u = engine.MaxoneUnitStock;
           assert.equal(u.number(''), null);
           assert.equal(u.number('0'), 0);
           assert.equal(u.number('12'), 12);
