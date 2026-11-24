@@ -121,59 +121,16 @@
   }
 
   function updateOpening() {
-    var date = $('date').value || iso();
-    var time = $('time').value || '00:00';
-    var current = records.filter(function (record) { return record.id === editId; })[0];
-    var result = openingFor(date, time, current);
-    opening = result.value;
-    setUnits('o', MaxoneStock.bottlesToUnits(opening));
-    $('seedBox').classList.toggle('hidden', !result.first);
-    $('firstNote').classList.toggle('hidden', !result.first);
-    if (result.first && current) setUnits('s', MaxoneStock.bottlesToUnits(current.openingSeedBottles || 0));
-    if (result.first && !current) setUnits('s', { cases: 0, packs: 0, bottles: 0 });
-    $('seedBox').setAttribute('data-ledger-first', result.first ? 'true' : 'false');
-    calculate();
+    var current=records.filter(function(r){return r.id===editId;})[0], prev=records.filter(function(r){return r.id!==editId&&(r.date+String(r.time||'00:00'))<=($('date').value+String($('time').value||'00:00'));}).sort(function(a,b){return String(a.date+a.time).localeCompare(String(b.date+b.time));}).pop();
+    ['cases','packs','bottles'].forEach(function(k){var id=k==='cases'?'c':k==='packs'?'p':'b',key=k==='bottles'?'loose_bottles':k,v=prev?prev['closing_'+key]:(current?current['opening_'+key]:null);$('o'+id).value=v==null?'':v;if(current)$('s'+id).value=current['opening_'+key]==null?'':current['opening_'+key];});
+    $('seedBox').classList.toggle('hidden',!!prev);$('firstNote').classList.toggle('hidden',!!prev);calculate();
   }
   function getCalculation() {
-    var seed = $('seedBox').classList.contains('hidden') ? opening : MaxoneStock.unitsToBottles(units('s'));
-    var openingValue = $('seedBox').classList.contains('hidden') ? opening : seed;
-    var refill = MaxoneStock.unitsToBottles(units('f'));
-    var sales = MaxoneStock.unitsToBottles(units('v'));
-    return { opening: openingValue, seed: seed, refill: refill, sales: sales, closing: openingValue + refill - sales };
+    var keys=['cases','packs','bottles'],ids=['c','p','b'],r={opening:{},sales:{},closing:{},enabled:$('calcEnabled').checked};
+    keys.forEach(function(k,i){var key=k==='bottles'?'loose_bottles':k;r.opening[k]=MaxoneUnitStock.number($('o'+ids[i]).value);if(r.opening[k]===null&&!$('seedBox').classList.contains('hidden'))r.opening[k]=MaxoneUnitStock.number($('s'+ids[i]).value);r.sales[k]=MaxoneUnitStock.number($('v'+ids[i]).value);r.closing[k]=r.enabled?(r.opening[k]===null||r.sales[k]===null?null:r.opening[k]-r.sales[k]):(override?MaxoneUnitStock.number($('x'+ids[i]).value):null);if(r.enabled&&r.closing[k]!==null&&r.closing[k]<0)throw new Error('ยอดขายเกิน Stock '+k);});return r;
   }
-  function renderReview(calc, closingUnits) {
-    $('review').innerHTML =
-      '<div><span>ร้านค้า</span><b>' + escapeHtml(shopName($('shop').value)) + '</b></div>' +
-      '<div><span>วันและเวลาทำรายการ</span><b>' + escapeHtml(thaiDate($('date').value) + ' ' + ($('time').value || '')) + '</b></div>' +
-      '<div><span>Stock กลางก่อนรายการ</span><b>' + unitText(MaxoneStock.bottlesToUnits(calc.opening)) + '</b></div>' +
-      '<div><span>เติมเข้า Stock กลาง</span><b>' + unitText(MaxoneStock.bottlesToUnits(calc.refill)) + '</b></div>' +
-      '<div><span>ยอดขาย</span><b>' + unitText(MaxoneStock.bottlesToUnits(calc.sales)) + '</b></div>' +
-      '<div><span>Stock กลางหลังรายการ</span><b>' + unitText(closingUnits) + '</b></div>' +
-      '<div><span>วันหมดอายุ</span><b>' + escapeHtml(thaiDate($('expiry').value)) + '</b></div>';
-  }
-  function calculate() {
-    try {
-      var calc = getCalculation();
-      if (calc.closing < 0) throw new Error('ยอดขายมากกว่าสต๊อกที่มี');
-      var shown = MaxoneStock.bottlesToUnits(calc.closing);
-      $('delta').textContent = '';
-      if (override) {
-        shown = units('x');
-        var delta = MaxoneStock.unitsToBottles(shown) - calc.closing;
-        $('delta').textContent = 'ผลต่างจากยอดคำนวณ: ' + (delta > 0 ? '+' : '') + delta + ' ขวด';
-      }
-      $('cc').textContent = shown.cases;
-      $('cp').textContent = shown.packs;
-      $('cb').textContent = shown.bottles;
-      renderReview(calc, shown);
-      $('error').classList.add('hidden');
-      return true;
-    } catch (error) {
-      $('error').textContent = error.message;
-      $('error').classList.remove('hidden');
-      return false;
-    }
-  }
+  function renderReview(calc,closingUnits){$('review').innerHTML='<div><span>ร้านค้า</span><b>'+escapeHtml(shopName($('shop').value))+'</b></div><div><span>ยอดขาย</span><b>'+unitText({cases:calc.sales.cases||0,packs:calc.sales.packs||0,bottles:calc.sales.bottles||0})+'</b></div><div><span>Stock คงเหลือ</span><b>'+unitText({cases:closingUnits.cases||0,packs:closingUnits.packs||0,bottles:closingUnits.bottles||0})+'</b></div><div><span>วันหมดอายุ</span><b>'+escapeHtml(thaiDate($('expiry').value))+'</b></div>';}
+  function calculate(){try{var c=getCalculation(),v=c.closing;$('cc').textContent=v.cases==null?'':v.cases;$('cp').textContent=v.packs==null?'':v.packs;$('cb').textContent=v.bottles==null?'':v.bottles;$('delta').textContent=c.enabled?'คำนวณแยกหน่วย':'ปิดการคำนวณอัตโนมัติ';renderReview(c,v);$('error').classList.add('hidden');return true;}catch(e){$('error').textContent=e.message;$('error').classList.remove('hidden');return false;}}
   function resetForm() {
     editId = null;
     override = false;
@@ -194,64 +151,13 @@
   function cloudQueueDelete(recordId) {
     return { id: 'delete-record-' + recordId, op: 'delete', entity: 'record', entityId: recordId, createdAt: Date.now() };
   }
-  function persistChange(candidate, oldRecord, action) {
-    /* Recalculate the entire company stock ledger, irrespective of shop/location. */
-    /* The initial warehouse balance belongs to the ledger, not to a particular shop/event. */
-    if (action !== 'delete' && !(records || []).length && Number(candidate.openingSeedBottles || 0) > 0) {
-      candidate.openingSeedBottles = Number(candidate.openingSeedBottles);
-    }
-    var affected = MaxoneStock.prepareLedger(records, candidate, action);
-    affected = MaxoneStock.normalizeLedger(affected);
-    var recalculated = MaxoneStock.recalculate(affected);
-    var saved = recalculated.map(function (result) {
-      var original = affected.filter(function (record) { return record.id === result.id; })[0];
-      var copy = {};
-      Object.keys(original).forEach(function (key) { copy[key] = original[key]; });
-      ['openingBottles','calculatedClosingBottles','adjustmentBottles','closingBottles','hasManualAdjustment'].forEach(function (key) { copy[key] = result[key]; });
-      copy.updatedAt = Date.now();
-      return copy;
-    });
-    var audit = { id: uuid(), recordId: candidate.id, action: action, beforeData: oldRecord || null,
-      afterData: action === 'delete' ? null : candidate, createdAt: Date.now() };
-    var queue = action === 'delete' ? cloudQueueDelete(candidate.id) : null;
-    return MDB.applyRecordChange(saved, action === 'delete' ? candidate.id : null, audit, queue).then(refresh);
+  function persistChange(candidate,oldRecord,action){
+    var affected=records.filter(function(r){return r.id!==candidate.id;});if(action!=='delete')affected.push(candidate);affected.sort(function(a,b){return String(a.date+a.time).localeCompare(String(b.date+b.time));});
+    var prev=null;affected.forEach(function(r){if(r.stockCalculationEnabled){['cases','packs','bottles'].forEach(function(k){var key=k==='bottles'?'loose_bottles':k,o=prev?prev['closing_'+key]:r['opening_'+key],v=r['sales_'+key];r['opening_'+key]=o;r['closing_'+key]=o==null||v==null?null:o-v;});}prev=r;});
+    var audit={id:uuid(),recordId:candidate.id,action:action,beforeData:oldRecord||null,afterData:action==='delete'?null:candidate,createdAt:Date.now()},queue=action==='delete'?cloudQueueDelete(candidate.id):null;
+    return MDB.applyRecordChange(affected,action==='delete'?candidate.id:null,audit,queue).then(refresh);
   }
-  function saveRecord(event) {
-    event.preventDefault();
-    try {
-      var shopId = $('shop').value;
-      if (!shopId) throw new Error('กรุณาเลือกร้านค้า');
-      if (!$('date').value) throw new Error('กรุณาเลือกวันที่ขาย');
-      if (!$('time').value) throw new Error('กรุณาเลือกเวลาทำรายการ');
-      var calc = getCalculation();
-      var firstLedgerEntry = records.filter(function (record) { return record.id !== editId; }).length === 0;
-      if (firstLedgerEntry && calc.seed <= 0 && calc.refill <= 0) throw new Error('รายการแรกยังไม่มี Stock ตั้งต้น กรุณากรอก Stock ตั้งต้นในหัวข้อ Stock กลางตั้งต้น หรือกรอกจำนวนรับสินค้าเข้า Stock กลางก่อนบันทึก');
-      if (calc.closing < 0) throw new Error('Stock ไม่เพียงพอ: Stock ตั้งต้น + รับสินค้าเข้า ต้องไม่น้อยกว่ายอดขาย');
-      var closingOverride = null;
-      if (override) {
-        var requested = units('x');
-        var preview = MaxoneStock.previewAdjustment(calc.closing, requested);
-        if (preview.differenceBottles !== 0) {
-          if (!window.confirm('ยืนยันแก้ไขสต๊อกคงเหลือ?\nยอดคำนวณ: ' + unitText(preview.calculatedUnits) + '\nยอดที่แก้ไข: ' + unitText(preview.requestedUnits) + '\nผลต่าง: ' + preview.differenceBottles + ' ขวด')) return;
-          closingOverride = preview.requestedBottles;
-        }
-      }
-      var old = records.filter(function (record) { return record.id === editId; })[0] || null;
-      var now = Date.now();
-      var row = {
-        id: editId || uuid(), shopId: shopId, date: $('date').value, time: $('time').value,
-        transactionAt: transactionTimestamp($('date').value, $('time').value),
-        createdAt: old ? old.createdAt : now, updatedAt: now, expiryDate: $('expiry').value || null,
-        openingSeedBottles: firstLedgerEntry ? calc.seed : 0, refillBottles: calc.refill, salesBottles: calc.sales,
-        closingOverrideBottles: closingOverride, sourceType: 'app'
-      };
-      persistChange(row, old, old ? 'update' : 'create').then(function () {
-        resetForm();
-        setStatus('● บันทึกในเครื่องแล้ว', false);
-        if (session && navigator.onLine) syncAll();
-      }).catch(showError);
-    } catch (error) { showError(error); }
-  }
+  function saveRecord(event){event.preventDefault();try{var shopId=$('shop').value;if(!shopId)throw new Error('กรุณาเลือกร้านค้า');var c=getCalculation(),old=records.filter(function(r){return r.id===editId;})[0]||null,now=Date.now(),row={id:editId||uuid(),shopId:shopId,date:$('date').value,time:$('time').value,transactionAt:transactionTimestamp($('date').value,$('time').value),createdAt:old?old.createdAt:now,updatedAt:now,expiryDate:$('expiry').value||null,stockCalculationEnabled:c.enabled,opening_cases:c.opening.cases,opening_packs:c.opening.packs,opening_loose_bottles:c.opening.bottles,sales_cases:c.sales.cases,sales_packs:c.sales.packs,sales_loose_bottles:c.sales.bottles,closing_cases:c.closing.cases,closing_packs:c.closing.packs,closing_loose_bottles:c.closing.bottles,openingSeedBottles:0,refillBottles:0,salesBottles:0,closingBottles:0,sourceType:'app'};persistChange(row,old,old?'update':'create').then(function(){resetForm();setStatus('● บันทึกในเครื่องแล้ว',false);if(session&&navigator.onLine)syncAll();}).catch(showError);}catch(e){showError(e);}}
   function showError(error) {
     $('error').textContent = error && error.message ? error.message : String(error);
     $('error').classList.remove('hidden');
@@ -708,10 +614,9 @@
     loadSession();
     renderAccount();
     MDB.open().then(function () {
-      if (localStorage.getItem('maxone-v033-data-reset') === 'done') return rebuildGlobalLedger();
+      if (localStorage.getItem('maxone-v040-data-reset') === 'done') return Promise.resolve();
       return MDB.clearAll().then(function () {
-        localStorage.setItem('maxone-v033-data-reset', 'done');
-        return rebuildGlobalLedger();
+        localStorage.setItem('maxone-v040-data-reset', 'done');
       });
     }).then(function () {
       return MDB.all('shops');
@@ -745,6 +650,7 @@
       };
     });
     $('form').onsubmit = saveRecord;
+    $('calcEnabled').onchange = calculate;
     $('shop').onchange = updateOpening;
     $('date').onchange = updateOpening;
     $('time').onchange = updateOpening;
