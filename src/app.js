@@ -202,9 +202,10 @@
     setUnits('f',{cases:record.refill_cases||0,packs:record.refill_packs||0,bottles:record.refill_loose_bottles||0});
     setUnits('v',{cases:record.sales_cases==null?'':record.sales_cases,packs:record.sales_packs==null?'':record.sales_packs,bottles:record.sales_loose_bottles==null?'':record.sales_loose_bottles});
     updateOpening();
-    override = record.closingOverrideBottles !== null && record.closingOverrideBottles !== undefined;
+    override = !record.stockCalculationEnabled &&
+      (record.closing_cases != null || record.closing_packs != null || record.closing_loose_bottles != null);
     $('overrideBox').classList.toggle('hidden', !override);
-    if (override) setUnits('x', MaxoneStock.bottlesToUnits(record.closingOverrideBottles));
+    if (override) setUnits('x', {cases:record.closing_cases,packs:record.closing_packs,bottles:record.closing_loose_bottles});
     $('editBalance').textContent = override ? 'ยกเลิกแก้ไขยอด' : 'แก้ไขยอดสต๊อกคงเหลือ';
     $('save').textContent = 'บันทึกการแก้ไข';
     calculate();
@@ -694,7 +695,7 @@
     $('editBalance').onclick = function () {
       override = !override;
       $('overrideBox').classList.toggle('hidden', !override);
-      if (override) setUnits('x', MaxoneStock.bottlesToUnits(getCalculation().closing));
+      if (override) setUnits('x', getCalculation().closing);
       $('editBalance').textContent = override ? 'ยกเลิกแก้ไขยอด' : 'แก้ไขยอดสต๊อกคงเหลือ';
       calculate();
     };
