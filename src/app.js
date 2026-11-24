@@ -693,9 +693,18 @@
     $('shopEditor').onclick = function (event) { if (event.target === $('shopEditor')) closeShopEditor(); };
     $('reset').onclick = resetForm;
     $('editBalance').onclick = function () {
-      override = !override;
+      if (!override) {
+        var current = records.filter(function (r) { return r.id === editId; })[0];
+        var calculated = getCalculation();
+        var initial = calculated.enabled ? calculated.closing : (current ? {
+          cases:current.closing_cases, packs:current.closing_packs, bottles:current.closing_loose_bottles
+        } : {cases:null,packs:null,bottles:null});
+        override = true;
+        setUnits('x', initial);
+      } else {
+        override = false;
+      }
       $('overrideBox').classList.toggle('hidden', !override);
-      if (override) setUnits('x', getCalculation().closing);
       $('editBalance').textContent = override ? 'ยกเลิกแก้ไขยอด' : 'แก้ไขยอดสต๊อกคงเหลือ';
       calculate();
     };
