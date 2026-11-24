@@ -213,20 +213,28 @@
     document.querySelector('[data-tab="entry"]').click();
     window.scrollTo(0, 0);
   }
+  function historyWeekRange() {
+    var today = new Date();
+    var daysBack = (today.getDay() + 1) % 7;
+    if (!daysBack) daysBack = 7;
+    var saturday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysBack);
+    var monday = new Date(saturday.getFullYear(), saturday.getMonth(), saturday.getDate() - 5);
+    return { from: formatLocalDate(monday), to: formatLocalDate(saturday) };
+  }
   function history() {
-    var cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 59);
-    var cutoff = cutoffDate.getFullYear() + '-' + ('0' + (cutoffDate.getMonth() + 1)).slice(-2) + '-' + ('0' + cutoffDate.getDate()).slice(-2);
-    var query = $('search').value.toLowerCase();
+    var week = historyWeekRange();
+    var query = $('search').value.trim().toLowerCase();
     var visible = records.filter(function (record) {
-      return (allMode || record.date >= cutoff) && shopName(record.shopId).toLowerCase().indexOf(query) >= 0;
+      var inRange = allMode || (record.date >= week.from && record.date <= week.to);
+      return inRange && shopName(record.shopId).toLowerCase().indexOf(query) >= 0;
     }).sort(function (a, b) { return MaxoneStock.compareRecords(b, a); });
-    $('range').textContent = (allMode ? 'รายการทั้งหมด' : 'ย้อนหลัง 60 วัน') + ' · ' + visible.length + ' รายการ';
+    $('range').textContent = (allMode ? 'ประวัติทั้งหมด' : 'สัปดาห์ล่าสุด ' + thaiDate(week.from) + ' - ' + thaiDate(week.to)) + ' · ' + visible.length + ' รายการ';
+    $('allHistory').textContent = allMode ? 'แสดงเฉพาะสัปดาห์ล่าสุด' : 'ดูประวัติย้อนหลัง';
     $('list').innerHTML = visible.length ? visible.map(function (record) {
       return '<article class="history-card"><small>' + escapeHtml(thaiDate(record.date)) + ' · ' + escapeHtml(record.time || '00:00') + '</small><strong>' + escapeHtml(shopName(record.shopId)) + '</strong>' +
         '<div class="hint">ขาย ' + unitText({cases:record.sales_cases==null?'—':record.sales_cases,packs:record.sales_packs==null?'—':record.sales_packs,bottles:record.sales_loose_bottles==null?'—':record.sales_loose_bottles}) + '<br>คงเหลือ ' + unitText({cases:record.closing_cases==null?'—':record.closing_cases,packs:record.closing_packs==null?'—':record.closing_packs,bottles:record.closing_loose_bottles==null?'—':record.closing_loose_bottles}) + '</div>' +
         '<div class="history-actions"><button type="button" data-edit="' + escapeHtml(record.id) + '">แก้ไข</button><button type="button" class="del" data-del="' + escapeHtml(record.id) + '">ลบ</button></div></article>';
-    }).join('') : '<div class="empty">ยังไม่มีรายการ</div>';
+    }).join('') : '<div class="empty">ยังไม่มีรายการในช่วงสัปดาห์ล่าสุด</div>';
   }
   function deleteRecord(recordId) {
     var record = records.filter(function (item) { return item.id === recordId; })[0];
@@ -791,7 +799,7 @@
     };
     $('allHistory').onclick = function () {
       allMode = !allMode;
-      $('allHistory').textContent = allMode ? 'แสดงเฉพาะ 60 วันล่าสุด' : 'ดูรายการย้อนหลังทั้งหมด';
+      $('allHistory').textContent = allMode ? 'แสดงเฉพาะสัปดาห์ล่าสุด' : 'ดูประวัติย้อนหลัง';
       history();
     };
     $('search').oninput = history;
