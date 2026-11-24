@@ -472,7 +472,11 @@
     var refill = MaxoneStock.bottlesToUnits(record.refillBottles || 0);
     var sales = MaxoneStock.bottlesToUnits(record.salesBottles || 0);
     return {
-      id: record.id, shop_id: record.shopId, sale_date: record.date, transaction_at: toIsoTime(record.transactionAt || transactionTimestamp(record.date, record.time)), entry_no: 1,
+      id: record.id, shop_id: record.shopId, sale_date: record.date, transaction_at: toIsoTime(record.transactionAt || transactionTimestamp(record.date, record.time)), sale_time: record.time || '00:00', entry_no: 1,
+      opening_cases: record.opening_cases, opening_packs: record.opening_packs, opening_loose_bottles: record.opening_loose_bottles,
+      closing_cases: record.closing_cases, closing_packs: record.closing_packs, closing_loose_bottles: record.closing_loose_bottles,
+      sales_cases: record.sales_cases, sales_packs: record.sales_packs, sales_loose_bottles: record.sales_loose_bottles,
+      stock_calculation_enabled: !!record.stockCalculationEnabled,
       opening_seed_bottles: record.openingSeedBottles || 0, opening_bottles: record.openingBottles || 0,
       refill_crates: refill.cases, refill_packs: refill.packs, refill_bottles: refill.bottles,
       sales_crates: sales.cases, sales_packs: sales.packs, sales_bottles: sales.bottles,
@@ -488,7 +492,7 @@
     var calculated = Number(row.opening_bottles || 0) + refill - sales;
     var adjustment = Number(row.stock_adjustment_bottles || 0);
     return {
-      id: row.id, shopId: row.shop_id, date: row.sale_date, time: row.transaction_at ? (function (d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }(new Date(row.transaction_at))) : '00:00', transactionAt: parseTime(row.transaction_at || row.created_at), sequence: 1,
+      id: row.id, shopId: row.shop_id, opening_cases:row.opening_cases, opening_packs:row.opening_packs, opening_loose_bottles:row.opening_loose_bottles, closing_cases:row.closing_cases, closing_packs:row.closing_packs, closing_loose_bottles:row.closing_loose_bottles, sales_cases:row.sales_cases, sales_packs:row.sales_packs, sales_loose_bottles:row.sales_loose_bottles, stockCalculationEnabled:!!row.stock_calculation_enabled, date: row.sale_date, time: row.sale_time || (row.transaction_at ? (function (d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }(new Date(row.transaction_at))) : '00:00', transactionAt: parseTime(row.transaction_at || row.created_at), sequence: 1,
       openingSeedBottles: Number(row.opening_seed_bottles || 0), openingBottles: Number(row.opening_bottles || 0),
       refillBottles: refill, salesBottles: sales, calculatedClosingBottles: calculated,
       adjustmentBottles: adjustment, closingBottles: Number(row.closing_bottles),
