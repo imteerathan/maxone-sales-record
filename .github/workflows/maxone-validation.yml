@@ -1,0 +1,32 @@
+name: Validate MAXONE
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [v0.4-stock-report-shared]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax check
+        run: |
+          node --check src/app.js
+          node --check src/stock-engine.js
+          node --check src/db.js
+      - name: Independent unit engine checks
+        run: |
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const engine = require('./src/stock-engine.js');
+          const u = engine.MaxoneUnitStock;
+          assert.equal(u.number(''), null);
+          assert.equal(u.number('0'), 0);
+          assert.equal(u.number('12'), 12);
+          assert.throws(() => u.number('-1'));
+          assert.throws(() => u.number('1.5'));
+          console.log('Independent unit validation passed');
+          NODE

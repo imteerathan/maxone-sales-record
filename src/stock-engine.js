@@ -104,6 +104,9 @@
   var api = { BOTTLES_PER_PACK: 10, PACKS_PER_CASE: 5, BOTTLES_PER_CASE: 50,
     unitsToBottles: unitsToBottles, bottlesToUnits: bottlesToUnits, recalculate: recalculate, normalizeLedger: normalizeLedger,
     compareRecords: compareRecords, timeOf: timeOf, prepareLedger: prepareLedger, previewAdjustment: previewAdjustment };
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof module !== 'undefined' && module.exports) { module.exports = api; module.exports.MaxoneUnitStock = root.MaxoneUnitStock; }
   if (root) root.MaxoneStock = api;
 }(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this)));
+
+/* Independent-unit validation. Never converts cases, packs, and bottles. */
+(function(root){'use strict';function n(v){if(v===null||v===undefined||v==='')return null;var x=Number(v);if(!isFinite(x)||x<0||Math.floor(x)!==x)throw new Error('จำนวนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป');return x;}root.MaxoneUnitStock={number:n};if(typeof module!=='undefined'&&module.exports)module.exports.MaxoneUnitStock=root.MaxoneUnitStock;}(typeof window!=='undefined'?window:this));
