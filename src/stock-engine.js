@@ -104,7 +104,7 @@
   var api = { BOTTLES_PER_PACK: 10, PACKS_PER_CASE: 5, BOTTLES_PER_CASE: 50,
     unitsToBottles: unitsToBottles, bottlesToUnits: bottlesToUnits, recalculate: recalculate, normalizeLedger: normalizeLedger,
     compareRecords: compareRecords, timeOf: timeOf, prepareLedger: prepareLedger, previewAdjustment: previewAdjustment };
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof module !== 'undefined' && module.exports) { module.exports = api; module.exports.MaxoneUnitStock = root.MaxoneUnitStock; }
   if (root) root.MaxoneStock = api;
 }(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this)));
 
