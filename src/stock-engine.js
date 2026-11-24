@@ -109,4 +109,4 @@
 }(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this)));
 
 /* Independent-unit validation. Never converts cases, packs, and bottles. */
-(function(root){'use strict';function n(v){if(v===null||v===undefined||v==='')return null;var x=Number(v);if(!isFinite(x)||x<0||Math.floor(x)!==x)throw new Error('จำนวนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป');return x;}root.MaxoneUnitStock={number:n};}(typeof window!=='undefined'?window:this));
+(function(root){'use strict';function n(v){if(v===null||v===undefined||v==='')return null;var x=Number(v);if(!isFinite(x)||x<0||Math.floor(x)!==x)throw new Error('จำนวนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป');return x;}root.MaxoneUnitStock={number:n};if(typeof module!=='undefined'&&module.exports)module.exports.MaxoneUnitStock=root.MaxoneUnitStock;}(typeof window!=='undefined'?window:this));
