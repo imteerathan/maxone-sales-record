@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header>
-    <div class="eyebrow">MAXONE · MOBILE SALES <span class="app-version">v0.9.0</span></div>
+    <div class="eyebrow">MAXONE · MOBILE SALES <span class="app-version">v0.9.5</span></div>
     <div class="header-row"><h1>Sales Record</h1><button type="button" id="accountButton" class="account-button">เข้าสู่ระบบ / ซิงก์</button></div>
     <div class="status-row"><span id="networkStatus">● กำลังตรวจสอบเครือข่าย</span><span id="status">● บันทึกในเครื่อง</span></div>
   </header>
@@ -31,42 +31,23 @@
         <div class="units"><div><label for="date">วันที่ทำรายการ *</label><input id="date" type="date" required></div><div><label for="time">เวลาทำรายการ *</label><input id="time" type="time" required></div></div>
         <label for="shop">ชื่อร้าน / จังหวัด *</label>
         <div class="inline shop-controls"><select id="shop" required><option value="">เลือกร้านค้า</option></select><button type="button" id="editShop" class="edit-shop" aria-label="แก้ไขร้านค้า" title="แก้ไขร้านค้า">✎</button><button type="button" id="addShop" aria-label="เพิ่มร้านค้า">+</button></div>
-        <h2>02 · Stock กลางตั้งต้น</h2><label class="inline"><input id="calcEnabled" type="checkbox"> เปิดคำนวณ Stock อัตโนมัติ (แยกหน่วย)</label>
-        <p class="hint">ยอดคงเหลือจากรายการก่อนหน้าทั้งหมดใน Stock กลาง ไม่แยกตามร้านค้า</p>
+        <h2>02 · Stock กลางตั้งต้น</h2>
+        <p class="hint">กรอก Stock ตั้งต้นตามต้องการ (ไม่บังคับ)</p>
         <div class="units">
-          <div><label>ลัง</label><input id="oc" type="number" readonly value="0"></div>
-          <div><label>แพ็ค</label><input id="op" type="number" readonly value="0"></div>
-          <div><label>ขวด</label><input id="ob" type="number" readonly value="0"></div>
-        </div>
-        <p id="firstNote" class="hint hidden">ยังไม่มีรายการก่อนหน้าใน Stock กลาง กรุณากำหนด Stock ตั้งต้นเริ่มต้น</p>
-        <div id="seedBox" class="units hidden">
-          <div><label>ตั้งต้น ลัง</label><input id="sc" type="number" min="0" step="1" value="0"></div>
-          <div><label>ตั้งต้น แพ็ค</label><input id="sp" type="number" min="0" step="1" value="0"></div>
-          <div><label>ตั้งต้น ขวด</label><input id="sb" type="number" min="0" step="1" value="0"></div>
-        </div>
-        <label for="expiry">วันหมดอายุ</label><input id="expiry" type="date">
-        <h3>เติมสินค้าเข้า Stock กลาง</h3><p class="hint">การเติมจะเพิ่มยอดคงเหลือของโกดัง ณ เวลาทำรายการนี้</p>
-        <div class="units">
-          <div><label>ลัง</label><input id="fc" type="number" min="0" step="1" value="0"></div>
-          <div><label>แพ็ค</label><input id="fp" type="number" min="0" step="1" value="0"></div>
-          <div><label>ขวด</label><input id="fb" type="number" min="0" step="1" value="0"></div>
+          <div><label for="oc">ลัง</label><input id="oc" type="number" min="0" step="1" placeholder="ไม่ระบุ"></div>
+          <div><label for="op">แพ็ค</label><input id="op" type="number" min="0" step="1" placeholder="ไม่ระบุ"></div>
+          <div><label for="ob">ขวด</label><input id="ob" type="number" min="0" step="1" placeholder="ไม่ระบุ"></div>
         </div>
         <h2>03 · Stock กลางคงเหลือ</h2>
         <div class="balance">
           <div class="units">
-            <div><label>ลัง</label><output id="cc">0</output></div>
-            <div><label>แพ็ค</label><output id="cp">0</output></div>
-            <div><label>ขวด</label><output id="cb">0</output></div>
+            <div><label for="xc">ลัง</label><input id="xc" type="number" min="0" step="1" placeholder="ไม่ระบุ"></div>
+            <div><label for="xp">แพ็ค</label><input id="xp" type="number" min="0" step="1" placeholder="ไม่ระบุ"></div>
+            <div><label for="xb">ขวด</label><input id="xb" type="number" min="0" step="1" placeholder="ไม่ระบุ"></div>
           </div>
-          <button type="button" id="editBalance" class="link">แก้ไขยอดสต๊อกคงเหลือ</button>
-          <div id="overrideBox" class="units hidden">
-            <div><label>ลัง</label><input id="xc" type="number" min="0" step="1" value="0"></div>
-            <div><label>แพ็ค</label><input id="xp" type="number" min="0" step="1" value="0"></div>
-            <div><label>ขวด</label><input id="xb" type="number" min="0" step="1" value="0"></div>
-          </div>
-          <div id="adjustReasonBox" class="hidden"><label for="adjustReason">เหตุผลที่ปรับยอดสต๊อก *</label><input id="adjustReason" type="text" maxlength="240" placeholder="เช่น ตรวจนับจริงพบว่าสินค้าขาด 2 ลัง"></div>
-          <p id="delta" class="hint"></p>
+          <label class="inline"><input id="closingAuto" type="checkbox"> คำนวณ Stock คงเหลืออัตโนมัติจากยอดคงเหลือวันก่อนหน้า หักยอดขายวันนี้</label>
         </div>
+        <label for="expiry">วันหมดอายุ</label><input id="expiry" type="date">
         <h2>04 · ยอดขาย</h2>
         <div class="units">
           <div><label>ลัง</label><input id="vc" type="number" min="0" step="1" value="0"></div>
@@ -91,7 +72,7 @@
       <input id="search" type="search" placeholder="ค้นหาชื่อร้าน">
       <button type="button" id="allHistory" class="secondary">ดูรายการย้อนหลังทั้งหมด</button>
       <div id="list"></div>
-      <p class="hint">รายงานหลักคงคอลัมน์ A-L และมีชีตรายละเอียดการเติม/ปรับสต๊อก</p>
+      <p class="hint">รายงานแสดง Stock ตั้งต้น Stock คงเหลือ วันหมดอายุ และยอดขาย</p>
     </section>
   </main>
   <footer>Stock กลางของ MAXONE · ร้านค้าเป็นสถานที่ขาย ไม่ใช่เจ้าของสต๊อก · ข้อมูลบันทึกในอุปกรณ์ก่อน</footer>
@@ -121,8 +102,8 @@
     <p class="hint">บัญชีนี้ใช้เฉพาะ MAXONE · ไม่เกี่ยวข้องกับ Cotton Favor</p>
   </div>
 </div>
-<script src="src/stock-engine.js?v=10"></script>
+<script src="src/stock-engine.js?v=11"></script>
 <script src="src/db.js"></script>
-<script src="src/app.js?v=13"></script>
+<script src="src/app.js?v=14"></script>
 </body>
 </html>

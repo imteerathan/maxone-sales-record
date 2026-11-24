@@ -1,4 +1,4 @@
-var CACHE = 'maxone-sales-v13-v090';
+var CACHE = 'maxone-sales-v14-v095';
 var FILES = [
   './', './index.html', './manifest.webmanifest', './src/app.css',
   './src/stock-engine.js', './src/db.js', './src/app.js',

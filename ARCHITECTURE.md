@@ -1,27 +1,22 @@
 # MAXONE Sales Record Architecture
 
-## Global company stock ledger
+## Stored stock balances
 
-MAXONE owns one central stock balance. A shop is only the location where a sale transaction occurs; a shop never owns or partitions stock. Every transaction has a hidden, stable UUID `SalesID` (`sales_records.id`) and a transaction timestamp (`transaction_at`). Records are ordered globally by transaction timestamp, then creation timestamp, then SalesID for deterministic ties.
+Opening and closing quantities are stored as independently editable cases, packs, and bottles. Opening stock is optional and is not inferred from another record. Closing stock is manually editable by default. The optional auto-calculation subtracts same-unit sales from the most recent earlier-date closing value; it does not convert units or rewrite other records. A shop is the sale location. Every transaction has a hidden, stable UUID `SalesID` (`sales_records.id`) and a transaction timestamp (`transaction_at`).
 
 For each event:
 
-`closing = opening + refill_to_company_stock - sales +/- manual_adjustment`
+`closing[unit] = previous_date_closing[unit] - sales_today[unit]`
 
-The first event in the ledger carries the initial warehouse opening balance. Every later event inherits the previous event's closing balance, even when the shop differs. A refill is an inbound movement into the central stock at that event's timestamp. It is not stock owned by the shop.
+If there is no earlier-date closing value for a unit, that unit remains blank until the user enters a value. Opening stock remains a separate optional report value.
 
 A date may contain multiple events, including multiple events at the same shop. Time determines their order. `shop_id` is descriptive sale-location metadata only.
 
-A manual correction is stored as a signed adjustment and flows into every later event. Editing, deleting, or changing the timestamp of an event requires recalculating the entire later global ledger. Calculate all results before committing; reject a change if any event would result in negative stock. The local changes and audit event are committed atomically in IndexedDB.
-
-When the earliest event is deleted or moved later, its initial warehouse balance must be transferred to the new earliest event so that the ledger's starting balance is not lost.
+Saving or deleting a record does not recalculate or rewrite balances in other records. The local changes and audit event are committed atomically in IndexedDB.
 
 ## Units
 
-All quantities are integer bottles:
-- 10 bottles = 1 pack
-- 5 packs = 1 case
-- 1 case = 50 bottles
+Cases, packs, and bottles are stored and calculated independently for this report.
 
 ## Local-first storage
 
@@ -29,11 +24,11 @@ IndexedDB stores shop/location names, sales ledger events, audit snapshots, and 
 
 ## Sync strategy
 
-Push local ledger events and pending tombstones when the app opens and when the browser returns online. Pull remote changes after authentication. Use stable SalesIDs for idempotent upserts. Recalculate the global ledger after edits/deletes. Never delete local data merely because a cloud write fails.
+Push local records and pending tombstones when the app opens and when the browser returns online. Pull remote changes after authentication. Use stable SalesIDs for idempotent upserts. Never delete local data merely because a cloud write fails.
 
 ## Export
 
-The primary Excel sheet preserves source columns A-L. A second `รายละเอียดเพิ่มเติม` sheet includes transaction date/time, shop, refill quantities, and stock adjustment details. Internal SalesID is not displayed or exported.
+Excel and PDF exports preserve the supplied 12-column grouped table layout. Sales totals are summed by unit and displayed with unit labels; zero totals are left blank. Internal SalesID is not displayed or exported.
 
 ## Workbook boundary
 
