@@ -345,17 +345,22 @@
     }).then(function () { $('saveShopEdit').disabled = false; });
   }
 
+  function formatLocalDate(value) {
+    return value.getFullYear() + '-' + ('0' + (value.getMonth() + 1)).slice(-2) + '-' + ('0' + value.getDate()).slice(-2);
+  }
+  function suggestToday() {
+    var today = formatLocalDate(new Date());
+    $('from').value = today;
+    $('to').value = today;
+  }
   function suggestWeek() {
     var date = new Date();
     var daysBack = (date.getDay() + 1) % 7;
     if (!daysBack) daysBack = 7;
     var saturday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysBack);
     var monday = new Date(saturday.getFullYear(), saturday.getMonth(), saturday.getDate() - 5);
-    function format(value) {
-      return value.getFullYear() + '-' + ('0' + (value.getMonth() + 1)).slice(-2) + '-' + ('0' + value.getDate()).slice(-2);
-    }
-    $('from').value = format(monday);
-    $('to').value = format(saturday);
+    $('from').value = formatLocalDate(monday);
+    $('to').value = formatLocalDate(saturday);
   }
   function excelDate(isoDate) {
     var parts = isoDate.split('-');
@@ -790,6 +795,7 @@
       history();
     };
     $('search').oninput = history;
+    $('today').onclick = suggestToday;
     $('week').onclick = suggestWeek;
     $('export').onclick = exportExcel;
     $('exportPdf').onclick = exportPdf;
