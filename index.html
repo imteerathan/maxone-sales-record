@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header>
-    <div class="eyebrow">MAXONE · MOBILE SALES <span class="app-version">v0.5.0</span></div>
+    <div class="eyebrow">MAXONE · MOBILE SALES <span class="app-version">v0.6.0</span></div>
     <div class="header-row"><h1>Sales Record</h1><button type="button" id="accountButton" class="account-button">เข้าสู่ระบบ / ซิงก์</button></div>
     <div class="status-row"><span id="networkStatus">● กำลังตรวจสอบเครือข่าย</span><span id="status">● บันทึกในเครื่อง</span></div>
   </header>
@@ -99,10 +99,10 @@
 <div id="shopEditor" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shopEditorTitle">
   <div class="modal-card shop-editor-card">
     <div class="modal-head"><h2 id="shopEditorTitle">จัดการชื่อร้านค้า</h2><button type="button" id="closeShopEditor" class="close-button" aria-label="ปิด">×</button></div>
-    <label for="shopSearch">ค้นหาร้านค้า</label><input id="shopSearch" type="search" placeholder="พิมพ์ชื่อร้านเพื่อค้นหา">
+    <label id="shopSearchLabel" for="shopSearch">ค้นหาร้านค้า</label><input id="shopSearch" type="search" placeholder="พิมพ์ชื่อร้านเพื่อค้นหา">
     <div id="shopChoices" class="shop-choices"></div>
     <input type="hidden" id="shopEditId">
-    <label for="shopEditName">แก้ไขชื่อร้าน</label><input id="shopEditName" type="text" placeholder="เลือกชื่อร้านจากรายการด้านบน">
+    <label id="shopEditLabel" for="shopEditName">แก้ไขชื่อร้าน</label><input id="shopEditName" type="text" placeholder="เลือกชื่อร้านจากรายการด้านบน">
     <p id="shopEditMessage" class="hint">เลือกร้านที่ต้องการแก้ไข แล้วกดบันทึก</p>
     <button type="button" id="saveShopEdit" class="primary wide">บันทึกชื่อและเลือกร้านนี้</button>
   </div>
@@ -121,8 +121,8 @@
     <p class="hint">บัญชีนี้ใช้เฉพาะ MAXONE · ไม่เกี่ยวข้องกับ Cotton Favor</p>
   </div>
 </div>
-<script src="src/stock-engine.js?v=9"></script>
+<script src="src/stock-engine.js?v=10"></script>
 <script src="src/db.js"></script>
-<script src="src/app.js?v=9"></script>
+<script src="src/app.js?v=10"></script>
 </body>
 </html>
