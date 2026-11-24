@@ -44,11 +44,7 @@
     $('networkStatus').className = online ? 'network-online' : 'network-offline';
   }
   function number(id) {
-    var raw = $(id).value;
-    if (raw === '') return 0;
-    var value = Number(raw);
-    if (!isFinite(value) || Math.floor(value) !== value || value < 0) throw new Error('จำนวนสินค้าแต่ละช่องต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป');
-    return value;
+    return MaxoneUnitStock.number($(id).value);
   }
   function units(prefix) {
     return { cases: number(prefix + 'c'), packs: number(prefix + 'p'), bottles: number(prefix + 'b') };
@@ -631,7 +627,7 @@
   }
 
   function seedDefaultShops() {
-    return MDB.write('shops', ['โพธิ์แก้วสโตร์','บางบอน','วิลล่า'].map(function (name) {
+    return MDB.write('shops', ['ศิริชัยค้าส่ง','ศุชานันท์ เทรดดิ้ง','ธีรเชษฐ','โพธิ์แก้วสโตร์'].map(function (name) {
       var now = Date.now();
       return { id: uuid(), name: name, isActive: true, source: 'workbook-name-only', createdAt: now, updatedAt: now };
     }));
