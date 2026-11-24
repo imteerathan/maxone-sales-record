@@ -64,6 +64,7 @@
             <div><label>แพ็ค</label><input id="xp" type="number" min="0" step="1" value="0"></div>
             <div><label>ขวด</label><input id="xb" type="number" min="0" step="1" value="0"></div>
           </div>
+          <div id="adjustReasonBox" class="hidden"><label for="adjustReason">เหตุผลที่ปรับยอดสต๊อก *</label><input id="adjustReason" type="text" maxlength="240" placeholder="เช่น ตรวจนับจริงพบว่าสินค้าขาด 2 ลัง"></div>
           <p id="delta" class="hint"></p>
         </div>
         <h2>04 · ยอดขาย</h2>
@@ -89,6 +90,7 @@
       <label for="to">วันที่สิ้นสุด</label><input id="to" type="date">
       <button type="button" id="week" class="link">ใช้ช่วงวันจันทร์ถึงวันเสาร์ที่ผ่านมา</button>
       <button type="button" id="export" class="primary wide">ดาวน์โหลด Excel (.xlsx)</button>
+      <button type="button" id="exportPdf" class="secondary wide">พิมพ์ / บันทึก PDF</button>
       <p class="hint">รายงานหลักคงคอลัมน์ A-L และมีชีตรายละเอียดการเติม/ปรับสต๊อก</p>
     </section>
   </main>
