@@ -361,51 +361,109 @@
     var parts = isoDate.split('-');
     return new Date(Number(parts[0]) + 543, Number(parts[1]) - 1, Number(parts[2]));
   }
+  function reportRows() {
+    var from = $('from').value, to = $('to').value;
+    if (!from || !to || from > to) { window.alert('กรุณาเลือกช่วงวันที่ให้ถูกต้อง'); return null; }
+    var rows = records.filter(function (r) { return r.date >= from && r.date <= to; }).sort(MaxoneStock.compareRecords);
+    if (!rows.length) { window.alert('ไม่พบข้อมูลในช่วงวันที่เลือก'); return null; }
+    return { from: from, to: to, rows: rows };
+  }
+  function reportCell(v) { return v == null || v === '' ? '' : v; }
+  function reportTotals(rows, key) {
+    return rows.reduce(function (sum, r) { var n = Number(r[key]); return sum + (isFinite(n) ? n : 0); }, 0);
+  }
   function exportExcel() {
-    var from = $('from').value;
-    var to = $('to').value;
-    if (!from || !to || from > to) { window.alert('กรุณาเลือกช่วงวันที่ให้ถูกต้อง'); return; }
-    if (!window.XLSX) { window.alert('ยังไม่มีไลบรารี Excel ในเครื่อง กรุณาเปิดแอปออนไลน์หนึ่งครั้งแล้วลองใหม่'); return; }
-    var rows = records.filter(function (record) { return record.date >= from && record.date <= to; }).sort(MaxoneStock.compareRecords);
-    if (!rows.length) { window.alert('ไม่พบข้อมูลในช่วงวันที่เลือก'); return; }
-    var main = [
-      ['แบบฟอร์มสรุปยอดขายทีมหน่วยรถ'],
-      ['ทีม.....หมอก.อาม กุ๊กไก่ อาชิ.........เขต..........ภาคกลาง.......................................'],
+    var report = reportRows();
+    if (!report) return;
+    if (!window.XLSX) { window.alert('ยังไม่มีไลบรารี Excel กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่'); return; }
+    var rows = report.rows;
+    var aoa = [
+      ['แบบฟอร์มสรุปยอดขายทีมหน่วยรถ เขตภาคกลาง'],
+      ['ทีม: หมอก, อาม,กุ๊กไก่, อาชิ'],
       ['วัน-เดือน-ปี','ชื่อร้าน/จังหวัด','Stock ตั้งต้น','','','สต๊อกคงเหลือ','','','วันหมดอายุ','ยอดขาย','',''],
       ['','','ลัง','แพ็ค','ขวด','ลัง','แพ็ค','ขวด','','ลัง','แพ็ก','ขวด']
     ];
-    var detail = [['วันที่','เวลา','ชื่อร้าน','เติมลัง','เติมแพ็ค','เติมขวด','ปรับสต๊อก (ขวด)','ยอดคงเหลือก่อนปรับ (ขวด)','ยอดคงเหลือจริง (ขวด)','ประเภทการบันทึก']];
-    rows.forEach(function (record) {
-      main.push([excelDate(record.date),shopName(record.shopId),
-        record.opening_cases,record.opening_packs,record.opening_loose_bottles,
-        record.closing_cases,record.closing_packs,record.closing_loose_bottles,
-        record.expiryDate?excelDate(record.expiryDate):'',
-        record.sales_cases,record.sales_packs,record.sales_loose_bottles]);
-      detail.push([excelDate(record.date),record.time||'00:00',shopName(record.shopId),
-        record.refill_cases,record.refill_packs,record.refill_loose_bottles,
-        '', '', '', record.sourceType||'app']);
+    rows.forEach(function (r) {
+      aoa.push([
+        r.date ? excelDate(r.date) : '', shopName(r.shopId),
+        reportCell(r.opening_cases), reportCell(r.opening_packs), reportCell(r.opening_loose_bottles),
+        reportCell(r.closing_cases), reportCell(r.closing_packs), reportCell(r.closing_loose_bottles),
+        r.expiryDate ? excelDate(r.expiryDate) : '',
+        reportCell(r.sales_cases), reportCell(r.sales_packs), reportCell(r.sales_loose_bottles)
+      ]);
     });
-    var book = XLSX.utils.book_new();
-    var sheet = XLSX.utils.aoa_to_sheet(main);
-    sheet['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
-      { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } }, { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } },
-      { s: { r: 2, c: 2 }, e: { r: 2, c: 4 } }, { s: { r: 2, c: 5 }, e: { r: 2, c: 7 } },
-      { s: { r: 2, c: 8 }, e: { r: 3, c: 8 } }, { s: { r: 2, c: 9 }, e: { r: 2, c: 11 } }
+    var totalRow = aoa.length + 1;
+    aoa.push(['รวมยอดขาย','','','','','','','','',
+      { f: 'SUM(J5:J' + (totalRow - 1) + ')' },
+      { f: 'SUM(K5:K' + (totalRow - 1) + ')' },
+      { f: 'SUM(L5:L' + (totalRow - 1) + ')' }
+    ]);
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = [
+      {s:{r:0,c:0},e:{r:0,c:11}}, {s:{r:1,c:0},e:{r:1,c:11}},
+      {s:{r:2,c:0},e:{r:3,c:0}}, {s:{r:2,c:1},e:{r:3,c:1}},
+      {s:{r:2,c:2},e:{r:2,c:4}}, {s:{r:2,c:5},e:{r:2,c:7}},
+      {s:{r:2,c:8},e:{r:3,c:8}}, {s:{r:2,c:9},e:{r:2,c:11}},
+      {s:{r:totalRow-1,c:0},e:{r:totalRow-1,c:8}}
     ];
-    sheet['!cols'] = [{ wch: 15 },{ wch: 24 },{ wch: 10 },{ wch: 10 },{ wch: 10 },{ wch: 10 },{ wch: 10 },{ wch: 10 },{ wch: 15 },{ wch: 10 },{ wch: 10 },{ wch: 10 }];
-    rows.forEach(function (record, index) {
-      var rowNumber = index + 5;
-      ['A','I'].forEach(function (col) {
-        var cell = sheet[col + rowNumber];
-        if (cell && cell.v) cell.z = 'd/m/yyyy';
-      });
-    });
-    XLSX.utils.book_append_sheet(book, sheet, 'Sheet1');
-    var detailSheet = XLSX.utils.aoa_to_sheet(detail);
-    detailSheet['!cols'] = [{ wch: 15 },{ wch: 10 },{ wch: 24 },{ wch: 12 },{ wch: 12 },{ wch: 12 },{ wch: 18 },{ wch: 24 },{ wch: 22 },{ wch: 18 }];
-    XLSX.utils.book_append_sheet(book, detailSheet, 'รายละเอียดเพิ่มเติม');
-    XLSX.writeFile(book, 'MAXONE_Sales_' + from + '_to_' + to + '.xlsx');
+    ws['!cols'] = [{wch:18.6},{wch:30},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:17.5},{wch:13},{wch:13},{wch:13}];
+    ws['!rows'] = [{hpt:27},{hpt:27},{hpt:27},{hpt:27}].concat(rows.map(function(){return {hpt:23.25};}),[{hpt:31.5}]);
+    ws['!pageSetup'] = { paperSize: 9, orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 };
+    ws['!pageMargins'] = { left:0.25,right:0.25,top:0.25,bottom:0.25,header:0.1,footer:0.1 };
+    ws['!printOptions'] = { horizontalCentered:true };
+    ws['!autofilter'] = { ref:'A4:L' + (rows.length+4) };
+    var border = { top:{style:'thin',color:{rgb:'FF808080'}},bottom:{style:'thin',color:{rgb:'FF808080'}},left:{style:'thin',color:{rgb:'FF808080'}},right:{style:'thin',color:{rgb:'FF808080'}} };
+    function styleRange(r1,r2,c1,c2,style) {
+      for(var r=r1;r<=r2;r++) for(var c=c1;c<=c2;c++) {
+        var ref=XLSX.utils.encode_cell({r:r,c:c});
+        if(!ws[ref]) ws[ref]={t:'s',v:''};
+        ws[ref].s=style;
+      }
+    }
+    var titleStyle={font:{name:'Arial',sz:18,bold:true},alignment:{horizontal:'center',vertical:'center'},fill:{fgColor:{rgb:'FFFFFFFF'}}};
+    var teamStyle={font:{name:'Arial',sz:16},alignment:{horizontal:'center',vertical:'center'}};
+    var headBlue={font:{name:'Arial',sz:13,bold:true,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:'FF073763'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:border};
+    var subBlue={font:{name:'Arial',sz:12,bold:true,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:'FF4A86E8'}},alignment:{horizontal:'center',vertical:'center'},border:border};
+    var dataStyle={font:{name:'Arial',sz:11},alignment:{horizontal:'center',vertical:'center'},border:border};
+    var shopStyle={font:{name:'Arial',sz:11},alignment:{horizontal:'left',vertical:'center'},border:border};
+    var totalStyle={font:{name:'Arial',sz:13,bold:true},alignment:{horizontal:'center',vertical:'center'},border:border};
+    styleRange(0,0,0,11,titleStyle); styleRange(1,1,0,11,teamStyle);
+    styleRange(2,3,0,11,headBlue); styleRange(3,3,2,7,subBlue); styleRange(3,3,9,11,subBlue);
+    styleRange(4,totalRow-2,0,11,dataStyle);
+    for(var rr=4;rr<totalRow-1;rr++) ws['B'+(rr+1)].s=shopStyle;
+    styleRange(totalRow-1,totalRow-1,0,11,totalStyle);
+    for(var dr=5;dr<=rows.length+4;dr++){ if(ws['A'+dr]) ws['A'+dr].z='d/m/yyyy'; if(ws['I'+dr]) ws['I'+dr].z='d/m/yyyy'; }
+    var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'สรุปยอดขาย');
+    XLSX.writeFile(wb,'MAXONE_Sales_'+report.from+'_to_'+report.to+'.xlsx',{cellStyles:true});
+  }
+  function exportPdf() {
+    var report = reportRows();
+    if (!report) return;
+    var rows = report.rows;
+    var body = rows.map(function(r) {
+      var cells = [thaiDate(r.date),shopName(r.shopId),r.opening_cases,r.opening_packs,r.opening_loose_bottles,
+        r.closing_cases,r.closing_packs,r.closing_loose_bottles,thaiDate(r.expiryDate),
+        r.sales_cases,r.sales_packs,r.sales_loose_bottles];
+      return '<tr>'+cells.map(function(v){return '<td>'+escapeHtml(v==null?'':v)+'</td>';}).join('')+'</tr>';
+    }).join('');
+    var sums=[reportTotals(rows,'sales_cases'),reportTotals(rows,'sales_packs'),reportTotals(rows,'sales_loose_bottles')];
+    var w=window.open('','_blank');
+    if(!w){window.alert('เบราว์เซอร์บล็อกหน้าต่างรายงาน กรุณาอนุญาต Pop-up แล้วลองใหม่');return;}
+    var html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>แบบฟอร์มสรุปยอดขายทีมหน่วยรถ เขตภาคกลาง</title><style>'+
+      '@page{size:A4 landscape;margin:0.25in}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,Tahoma,"Noto Sans Thai",sans-serif;color:#111}'+
+      '.sheet{width:100%;}h1,h2{margin:0;text-align:center;font-weight:700}h1{font-size:18pt;line-height:27pt}h2{font-size:16pt;line-height:27pt;font-weight:400}'+
+      'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10pt}th,td{border:1px solid #808080;text-align:center;vertical-align:middle;padding:3px 2px;overflow-wrap:anywhere}'+
+      'thead tr{height:27pt}thead th{background:#073763;color:#fff;font-size:11pt;font-weight:700}thead tr.sub th{background:#4a86e8;color:#fff;font-size:10pt}tbody tr{height:23.25pt}td:nth-child(2){text-align:left;padding-left:5px}'+
+      'tfoot td{height:31.5pt;font-weight:bold;font-size:11pt}tfoot td:first-child{text-align:right}'+
+      'col.a{width:9%}col.b{width:22%}col.c, col.d, col.e, col.f, col.g, col.h, col.j, col.k, col.l{width:6%}col.i{width:9%}'+
+      '@media print{.sheet{break-inside:avoid}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
+      '</style></head><body><div class="sheet"><h1>แบบฟอร์มสรุปยอดขายทีมหน่วยรถ เขตภาคกลาง</h1><h2>ทีม: หมอก, อาม,กุ๊กไก่, อาชิ</h2>'+
+      '<table><colgroup><col class="a"><col class="b"><col class="c"><col class="d"><col class="e"><col class="f"><col class="g"><col class="h"><col class="i"><col class="j"><col class="k"><col class="l"></colgroup>'+
+      '<thead><tr><th rowspan="2">วัน-เดือน-ปี</th><th rowspan="2">ชื่อร้าน/จังหวัด</th><th colspan="3">Stock ตั้งต้น</th><th colspan="3">สต๊อกคงเหลือ</th><th rowspan="2">วันหมดอายุ</th><th colspan="3">ยอดขาย</th></tr>'+
+      '<tr class="sub"><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ก</th><th>ขวด</th></tr></thead><tbody>'+body+'</tbody>'+
+      '<tfoot><tr><td colspan="9">รวมยอดขาย</td><td>'+sums[0]+'</td><td>'+sums[1]+'</td><td>'+sums[2]+'</td></tr></tfoot></table></div>'+
+      '<script>window.onload=function(){setTimeout(function(){window.print()},250)};<\/script></body></html>';
+    w.document.open();w.document.write(html);w.document.close();
   }
 
   /* Small XHR client: avoids modern JS syntax in the app shell for older iOS Safari. */
