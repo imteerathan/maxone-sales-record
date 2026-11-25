@@ -27,7 +27,7 @@
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
   }
   function thaiDate(s) {
-    if (!s) return 'ไม่ระบุ';
+    if (!s) return '';
     var a = s.split('-');
     return a[2] + '/' + a[1] + '/' + (Number(a[0]) + 543);
   }
@@ -61,7 +61,7 @@
   }
   function shopName(shopId) {
     var found = shops.filter(function (shop) { return shop.id === shopId; })[0];
-    return found ? found.name : 'ไม่พบร้าน';
+    return found ? found.name : '';
   }
   function transactionTimestamp(date, time) {
     var parsed = Date.parse(String(date || '') + 'T' + String(time || '00:00') + ':00');
@@ -400,31 +400,42 @@
   function exportPdf() {
     var report = reportRows();
     if (!report) return;
+    if (typeof window.html2pdf !== 'function') {
+      window.alert('ยังโหลดระบบสร้าง PDF ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง');
+      return;
+    }
     var rows = report.rows;
     var body = rows.map(function(r) {
-      var cells = [thaiDate(r.date),shopName(r.shopId),r.opening_cases,r.opening_packs,r.opening_loose_bottles,
-        r.closing_cases,r.closing_packs,r.closing_loose_bottles,thaiDate(r.expiryDate),
-        r.sales_cases,r.sales_packs,r.sales_loose_bottles];
-      return '<tr>'+cells.map(function(v){return '<td>'+escapeHtml(v==null?'':v)+'</td>';}).join('')+'</tr>';
+      var cells = [thaiDate(r.date),shopName(r.shopId),reportCell(r.opening_cases),reportCell(r.opening_packs),reportCell(r.opening_loose_bottles),
+        reportCell(r.closing_cases),reportCell(r.closing_packs),reportCell(r.closing_loose_bottles),thaiDate(r.expiryDate),
+        reportCell(r.sales_cases),reportCell(r.sales_packs),reportCell(r.sales_loose_bottles)];
+      return '<tr>'+cells.map(function(v){return '<td>'+escapeHtml(v)+'</td>';}).join('')+'</tr>';
     }).join('');
     var totals=salesTotalCells(rows);
-    var w=window.open('','_blank');
-    if(!w){window.alert('เบราว์เซอร์บล็อกหน้าต่างรายงาน กรุณาอนุญาต Pop-up แล้วลองใหม่');return;}
-    var html='<!doctype html><html lang="th"><head><meta charset="utf-8"><title>แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.</title><style>'+
-      '@page{size:A4 landscape;margin:0.25in}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,Tahoma,"Noto Sans Thai",sans-serif;color:#111}'+
-      '.sheet{width:100%;}h1,h2{margin:0;text-align:center;font-weight:700}h1{font-size:18pt;line-height:27pt}h2{font-size:16pt;line-height:27pt;font-weight:400}'+
-      'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10pt}th,td{border:1px solid #808080;text-align:center;vertical-align:middle;padding:3px 2px;overflow-wrap:anywhere}'+
-      'thead tr{height:27pt}thead th{background:#073763;color:#fff;font-size:11pt;font-weight:700}thead tr.sub th{background:#4a86e8;color:#fff;font-size:10pt}tbody tr{height:23.25pt}td:nth-child(2){text-align:left;padding-left:5px}'+
-      'tfoot td{height:31.5pt;font-weight:bold;font-size:11pt}tfoot td:first-child{text-align:right}'+
-      'col.a{width:9%}col.b{width:22%}col.c, col.d, col.e, col.f, col.g, col.h, col.j, col.k, col.l{width:6%}col.i{width:9%}'+
-      '@media print{.sheet{break-inside:avoid}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
-      '</style></head><body><div class="sheet"><h1>แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.</h1><h2>ทีม: หมอก, อาม,กุ๊กไก่, อาชิ</h2>'+
+    var host=document.createElement('div');
+    host.setAttribute('aria-hidden','true');
+    host.style.cssText='position:fixed;left:-10000px;top:0;width:1050px;background:#fff;z-index:-1;';
+    host.innerHTML='<style>'+
+      '*{box-sizing:border-box} .maxone-pdf{width:1050px;padding:18px;background:#fff;color:#111;font-family:Arial,Tahoma,sans-serif}'+
+      '.maxone-pdf h1,.maxone-pdf h2{margin:0;text-align:center;font-weight:700}.maxone-pdf h1{font-size:23px;line-height:34px}.maxone-pdf h2{font-size:19px;line-height:34px;font-weight:400}'+
+      '.maxone-pdf table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}'+
+      '.maxone-pdf th,.maxone-pdf td{border:1px solid #808080;text-align:center;vertical-align:middle;padding:5px 3px;overflow-wrap:anywhere;height:31px}'+
+      '.maxone-pdf thead tr{height:36px}.maxone-pdf thead th{background:#073763;color:#fff;font-size:14px;font-weight:700}.maxone-pdf thead tr.sub th{background:#4a86e8;color:#fff;font-size:13px}'+
+      '.maxone-pdf td:nth-child(2){text-align:left;padding-left:6px}.maxone-pdf tfoot td{height:42px;font-weight:bold;font-size:14px}.maxone-pdf tfoot td:first-child{text-align:right}'+
+      '.maxone-pdf col.a{width:9%}.maxone-pdf col.b{width:22%}.maxone-pdf col.c,.maxone-pdf col.d,.maxone-pdf col.e,.maxone-pdf col.f,.maxone-pdf col.g,.maxone-pdf col.h,.maxone-pdf col.j,.maxone-pdf col.k,.maxone-pdf col.l{width:6%}.maxone-pdf col.i{width:9%}'+
+      '</style><div class="maxone-pdf"><h1>แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.</h1><h2>ทีม: หมอก, อาม,กุ๊กไก่, อาชิ</h2>'+
       '<table><colgroup><col class="a"><col class="b"><col class="c"><col class="d"><col class="e"><col class="f"><col class="g"><col class="h"><col class="i"><col class="j"><col class="k"><col class="l"></colgroup>'+
       '<thead><tr><th rowspan="2">วัน-เดือน-ปี</th><th rowspan="2">ชื่อร้าน/จังหวัด</th><th colspan="3">Stock ตั้งต้น</th><th colspan="3">สต๊อกคงเหลือ</th><th rowspan="2">วันหมดอายุ</th><th colspan="3">ยอดขาย</th></tr>'+
       '<tr class="sub"><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th></tr></thead><tbody>'+body+'</tbody>'+
-      '<tfoot><tr><td colspan="9">รวมยอดขาย</td><td>'+escapeHtml(totals[0])+'</td><td>'+escapeHtml(totals[1])+'</td><td>'+escapeHtml(totals[2])+'</td></tr></tfoot></table></div>'+
-      '<script>window.onload=function(){setTimeout(function(){window.print()},250)};<\/script></body></html>';
-    w.document.open();w.document.write(html);w.document.close();
+      '<tfoot><tr><td colspan="9">รวมยอดขาย</td><td>'+escapeHtml(totals[0])+'</td><td>'+escapeHtml(totals[1])+'</td><td>'+escapeHtml(totals[2])+'</td></tr></tfoot></table></div>';
+    document.body.appendChild(host);
+    var filename='MAXONE_Sales_'+report.from+'_to_'+report.to+'.pdf';
+    var options={margin:[6,6,6,6],filename:filename,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},pagebreak:{mode:['avoid-all','css','legacy']}};
+    var worker=window.html2pdf().set(options).from(host.firstChild).save();
+    worker.then(function(){if(host.parentNode)host.parentNode.removeChild(host);}).catch(function(error){
+      if(host.parentNode)host.parentNode.removeChild(host);
+      showError(error || new Error('สร้างไฟล์ PDF ไม่สำเร็จ'));
+    });
   }
 
   /* Small XHR client: avoids modern JS syntax in the app shell for older iOS Safari. */
