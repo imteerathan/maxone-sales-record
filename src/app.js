@@ -321,7 +321,7 @@
     if (!rows.length) { window.alert('ไม่พบข้อมูลในช่วงวันที่เลือก'); return null; }
     return { from: from, to: to, rows: rows };
   }
-  function reportCell(v) { return v == null || v === '' ? '' : v; }
+  function reportCell(v) { return v == null || v === '' || (typeof v === 'number' && v === 0) || (typeof v === 'string' && v.trim() !== '' && Number(v) === 0) ? '' : v; }
   function reportTotals(rows, key) {
     return rows.reduce(function (sum, r) { var n = Number(r[key]); return sum + (isFinite(n) ? n : 0); }, 0);
   }
@@ -334,7 +334,7 @@
     return ['cases','packs','bottles'].map(function (key) {
       var unit = { cases: 0, packs: 0, bottles: 0 };
       unit[key] = values[key];
-      return MaxoneStock.formatUnitTotals(unit);
+      return values[key] > 0 ? MaxoneStock.formatUnitTotals(unit) : '';
     });
   }
   function exportExcel() {
