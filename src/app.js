@@ -414,7 +414,9 @@
     var totals=salesTotalCells(rows);
     var host=document.createElement('div');
     host.setAttribute('aria-hidden','true');
-    host.style.cssText='position:fixed;left:-10000px;top:0;width:1050px;background:#fff;z-index:-1;';
+    /* Keep the capture target inside the viewport. html2canvas can return a
+       blank canvas when the source is positioned far outside the viewport. */
+    host.style.cssText='position:fixed;left:0;top:0;width:1050px;background:#fff;z-index:2147483647;pointer-events:none;';
     host.innerHTML='<style>'+
       '*{box-sizing:border-box} .maxone-pdf{width:1050px;padding:18px;background:#fff;color:#111;font-family:Arial,Tahoma,sans-serif}'+
       '.maxone-pdf h1,.maxone-pdf h2{margin:0;text-align:center;font-weight:700}.maxone-pdf h1{font-size:23px;line-height:34px}.maxone-pdf h2{font-size:19px;line-height:34px;font-weight:400}'+
@@ -430,8 +432,16 @@
       '<tfoot><tr><td colspan="9">รวมยอดขาย</td><td>'+escapeHtml(totals[0])+'</td><td>'+escapeHtml(totals[1])+'</td><td>'+escapeHtml(totals[2])+'</td></tr></tfoot></table></div>';
     document.body.appendChild(host);
     var filename='MAXONE_Sales_'+report.from+'_to_'+report.to+'.pdf';
-    var options={margin:[6,6,6,6],filename:filename,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},pagebreak:{mode:['avoid-all','css','legacy']}};
-    var worker=window.html2pdf().set(options).from(host.firstChild).save();
+    var options={margin:[6,6,6,6],filename:filename,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,scrollX:0,scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},pagebreak:{mode:['css','legacy']}};
+    /* host.firstChild is the STYLE element, not the report. Passing it to
+       html2pdf creates a valid PDF container with no visible report content. */
+    var reportElement=host.querySelector('.maxone-pdf');
+    if(!reportElement || !reportElement.querySelector('table tbody tr')) {
+      if(host.parentNode)host.parentNode.removeChild(host);
+      showError(new Error('ไม่พบเนื้อหารายงานสำหรับสร้าง PDF'));
+      return;
+    }
+    var worker=window.html2pdf().set(options).from(reportElement).save();
     worker.then(function(){if(host.parentNode)host.parentNode.removeChild(host);}).catch(function(error){
       if(host.parentNode)host.parentNode.removeChild(host);
       showError(error || new Error('สร้างไฟล์ PDF ไม่สำเร็จ'));
