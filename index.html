@@ -16,7 +16,7 @@
 <body>
 <div class="app">
   <header>
-    <div class="eyebrow">MAXONE · MOBILE SALES <span class="app-version">v0.9.8</span></div>
+    <div class="eyebrow">MAXONE · MOBILE SALES <span class="app-version">v0.9.9</span></div>
     <div class="header-row"><h1>Sales Record</h1><button type="button" id="accountButton" class="account-button">เข้าสู่ระบบ / ซิงก์</button></div>
     <div class="status-row"><span id="networkStatus">● กำลังตรวจสอบเครือข่าย</span><span id="status">● บันทึกในเครื่อง</span></div>
   </header>
@@ -63,9 +63,19 @@
     </section>
     <section id="history" class="panel">
       <h2>02 · ส่งออกรายงาน</h2>
-      <label for="from">วันที่เริ่มต้น</label><input id="from" type="date">
-      <label for="to">วันที่สิ้นสุด</label><input id="to" type="date">
-      <div class="date-quick-actions" role="group" aria-label="เลือกช่วงวันที่ด่วน"><button type="button" id="today" class="link">วันนี้</button><button type="button" id="week" class="link">รายสัปดาห์</button></div>
+      <label for="from">วันที่เริ่มต้น</label><div class="date-field"><input id="from" type="date"><button type="button" id="setMonthStart" aria-label="เลือกวันจันทร์แรกของเดือน" title="วันจันทร์แรกของเดือน">↶</button></div>
+      <label for="to">วันที่สิ้นสุด</label><div class="date-field"><input id="to" type="date"><button type="button" id="setToday" aria-label="เลือกวันที่ปัจจุบัน" title="วันที่ปัจจุบัน">↶</button></div>
+      <div class="date-quick-actions" role="group" aria-label="เลือกช่วงวันที่ด่วน"><button type="button" id="monthStart" class="link">วันจันทร์แรกของเดือน</button><button type="button" id="today" class="link">วันนี้</button><button type="button" id="week" class="link">รายสัปดาห์</button></div>
+      <section class="report-team-settings" aria-labelledby="reportTeamHeading">
+        <h3 id="reportTeamHeading">รายละเอียดผู้ขาย</h3>
+        <label for="reportTeam">ชื่อหน่วยที่สังกัด</label>
+        <div class="inline"><select id="reportTeam"><option value="">เลือกหน่วย</option></select><button type="button" id="addReportTeam" aria-label="เพิ่มหน่วย">+</button><button type="button" id="editReportTeam" class="edit-shop" aria-label="จัดการหน่วย">✎</button></div>
+        <label for="memberSearch">สมาชิกทีม</label>
+        <div class="inline"><input id="memberSearch" type="search" placeholder="ค้นหาและเพิ่มสมาชิก"><button type="button" id="addMember" aria-label="เพิ่มสมาชิก">+</button><button type="button" id="manageMembers" class="edit-shop" aria-label="แก้ไขสมาชิก">✎</button></div>
+        <div id="memberSuggestions" class="member-suggestions hidden"></div>
+        <div id="selectedMembers" class="member-tags" aria-live="polite"></div>
+        <p class="hint">สมาชิกที่เลือกจะแสดงในหัวรายงาน โดยคั่นชื่อด้วยเครื่องหมายจุลภาค</p>
+      </section>
       <button type="button" id="export" class="primary wide">ดาวน์โหลด Excel (.xlsx)</button>
       <button type="button" id="exportPdf" class="secondary wide">พิมพ์ / บันทึก PDF</button>
       <h2>02 · ประวัติการขาย</h2>
@@ -89,6 +99,28 @@
     <button type="button" id="saveShopEdit" class="primary wide">บันทึกชื่อและเลือกร้านนี้</button>
   </div>
 </div>
+
+<div id="reportTeamEditor" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="reportTeamEditorTitle">
+  <div class="modal-card">
+    <div class="modal-head"><h2 id="reportTeamEditorTitle">จัดการหน่วยที่สังกัด</h2><button type="button" id="closeReportTeamEditor" class="close-button" aria-label="ปิด">×</button></div>
+    <label for="reportTeamSearch">ค้นหาหน่วย</label><input id="reportTeamSearch" type="search" placeholder="พิมพ์ชื่อหน่วย">
+    <div id="reportTeamChoices" class="shop-choices"></div>
+    <input type="hidden" id="reportTeamEditId">
+    <label for="reportTeamName">ชื่อหน่วย</label><input id="reportTeamName" type="text" placeholder="ชื่อหน่วยที่สังกัด">
+    <p id="reportTeamMessage" class="hint">เพิ่มหน่วยใหม่หรือเลือกหน่วยเพื่อแก้ไข</p>
+    <button type="button" id="saveReportTeam" class="primary wide">บันทึกหน่วย</button>
+  </div>
+</div>
+<div id="memberEditor" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="memberEditorTitle">
+  <div class="modal-card">
+    <div class="modal-head"><h2 id="memberEditorTitle">จัดการสมาชิกทีม</h2><button type="button" id="closeMemberEditor" class="close-button" aria-label="ปิด">×</button></div>
+    <label for="memberName">ชื่อสมาชิก</label><input id="memberName" type="text" placeholder="กรอกชื่อสมาชิก">
+    <input type="hidden" id="memberEditName">
+    <p id="memberEditorMessage" class="hint">เพิ่มสมาชิกใหม่ หรือเลือกชื่อด้านล่างเพื่อแก้ไข/ลบ</p>
+    <div id="memberChoices" class="shop-choices"></div>
+    <button type="button" id="saveMember" class="primary wide">เพิ่มสมาชิก</button>
+  </div>
+</div>
 <div id="authModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
   <div class="modal-card">
     <div class="modal-head"><h2 id="authTitle">บัญชี MAXONE</h2><button type="button" id="closeAuth" class="close-button" aria-label="ปิด">×</button></div>
@@ -105,6 +137,6 @@
 </div>
 <script src="src/stock-engine.js?v=11"></script>
 <script src="src/db.js"></script>
-<script src="src/app.js?v=17"></script>
+<script src="src/app.js?v=18"></script>
 </body>
 </html>
