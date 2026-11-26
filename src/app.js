@@ -430,6 +430,12 @@
   function reportTotals(rows, key) {
     return rows.reduce(function (sum, r) { var n = Number(r[key]); return sum + (isFinite(n) ? n : 0); }, 0);
   }
+  function reportSalesValue(rows) {
+    return reportTotals(rows, 'sales_cases') * 450 + reportTotals(rows, 'sales_packs') * 90;
+  }
+  function formatBaht(value) {
+    return Number(value || 0).toLocaleString('en-US') + ' บาท';
+  }
   function salesTotalCells(rows) {
     var values = {
       cases: reportTotals(rows, 'sales_cases'),
@@ -467,7 +473,7 @@
     });
     var totalRow = aoa.length + 1;
     var totalCells = salesTotalCells(rows);
-    aoa.push(['รวมยอดขาย','','','','','','','','',totalCells[0],totalCells[1],totalCells[2]]);
+    aoa.push(['รวมยอดขาย · ยอดขายรวม ' + formatBaht(reportSalesValue(rows)),'','','','','','','','',totalCells[0],totalCells[1],totalCells[2]]);
     var ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!merges'] = [
       {s:{r:0,c:0},e:{r:0,c:11}}, {s:{r:1,c:0},e:{r:1,c:11}},
@@ -534,13 +540,13 @@
       '.maxone-pdf table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}'+
       '.maxone-pdf th,.maxone-pdf td{border:1px solid #808080;text-align:center;vertical-align:middle;padding:5px 3px;overflow-wrap:anywhere;height:31px}'+
       '.maxone-pdf thead tr{height:36px}.maxone-pdf thead th{background:#073763;color:#fff;font-size:14px;font-weight:700}.maxone-pdf thead tr.sub th{background:#4a86e8;color:#fff;font-size:13px}'+
-      '.maxone-pdf td:nth-child(2){text-align:left;padding-left:6px}.maxone-pdf tfoot td{height:42px;font-weight:bold;font-size:14px}.maxone-pdf tfoot td:first-child{text-align:right}'+
+      '.maxone-pdf td:nth-child(2){text-align:left;padding-left:6px}.maxone-pdf tfoot td{height:42px;font-weight:bold;font-size:14px;text-align:center}'+
       '.maxone-pdf col.a{width:9%}.maxone-pdf col.b{width:22%}.maxone-pdf col.c,.maxone-pdf col.d,.maxone-pdf col.e,.maxone-pdf col.f,.maxone-pdf col.g,.maxone-pdf col.h,.maxone-pdf col.j,.maxone-pdf col.k,.maxone-pdf col.l{width:6%}.maxone-pdf col.i{width:9%}'+
       '</style><div class="maxone-pdf"><h1>'+escapeHtml(teamTitle)+'</h1><h2>'+escapeHtml(memberLine)+'</h2>'+
       '<table><colgroup><col class="a"><col class="b"><col class="c"><col class="d"><col class="e"><col class="f"><col class="g"><col class="h"><col class="i"><col class="j"><col class="k"><col class="l"></colgroup>'+
       '<thead><tr><th rowspan="2">วัน-เดือน-ปี</th><th rowspan="2">ชื่อร้าน/จังหวัด</th><th colspan="3">Stock ตั้งต้น</th><th colspan="3">สต๊อกคงเหลือ</th><th rowspan="2">วันหมดอายุ</th><th colspan="3">ยอดขาย</th></tr>'+
       '<tr class="sub"><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th></tr></thead><tbody>'+body+'</tbody>'+
-      '<tfoot><tr><td colspan="9">รวมยอดขาย</td><td>'+escapeHtml(totals[0])+'</td><td>'+escapeHtml(totals[1])+'</td><td>'+escapeHtml(totals[2])+'</td></tr></tfoot></table></div>';
+      '<tfoot><tr><td colspan="12">รวมยอดขาย '+escapeHtml(totals[0])+' · '+escapeHtml(totals[1])+' · '+escapeHtml(totals[2])+' &nbsp; | &nbsp; ยอดขายรวม '+escapeHtml(formatBaht(reportSalesValue(rows)))+'</td></tr></tfoot></table></div>';
     document.body.appendChild(host);
     var filename='MAXONE_Sales_'+report.from+'_to_'+report.to+'.pdf';
     var options={margin:[6,6,6,6],filename:filename,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,scrollX:0,scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},pagebreak:{mode:['css','legacy']}};
