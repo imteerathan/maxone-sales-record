@@ -56,7 +56,7 @@
   function clearAll() {
     return open().then(function (db) {
       return new Promise(function (resolve, reject) {
-        var names = ['shops', 'records', 'audit', 'syncQueue'];
+        var names = ['shops', 'records', 'audit', 'syncQueue', 'reportTeams'];
         var transaction = db.transaction(names, 'readwrite');
         names.forEach(function (name) { transaction.objectStore(name).clear(); });
         transaction.oncomplete = function () { resolve(); };
