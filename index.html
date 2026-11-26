@@ -63,9 +63,6 @@
     </section>
     <section id="history" class="panel">
       <h2>02 · ส่งออกรายงาน</h2>
-      <label for="from">วันที่เริ่มต้น</label><div class="date-field"><input id="from" type="date"><button type="button" id="setMonthStart" aria-label="เลือกวันจันทร์แรกของเดือน" title="วันจันทร์แรกของเดือน">↶</button></div>
-      <label for="to">วันที่สิ้นสุด</label><div class="date-field"><input id="to" type="date"><button type="button" id="setToday" aria-label="เลือกวันที่ปัจจุบัน" title="วันที่ปัจจุบัน">↶</button></div>
-      <div class="date-quick-actions" role="group" aria-label="เลือกช่วงวันที่ด่วน"><button type="button" id="monthStart" class="link">วันจันทร์แรกของเดือน</button><button type="button" id="today" class="link">วันนี้</button><button type="button" id="week" class="link">รายสัปดาห์</button></div>
       <section class="report-team-settings" aria-labelledby="reportTeamHeading">
         <h3 id="reportTeamHeading">รายละเอียดผู้ขาย</h3>
         <label for="reportTeam">ชื่อหน่วยที่สังกัด</label>
@@ -76,6 +73,10 @@
         <div id="selectedMembers" class="member-tags" aria-live="polite"></div>
         <p class="hint">สมาชิกที่เลือกจะแสดงในหัวรายงาน โดยคั่นชื่อด้วยเครื่องหมายจุลภาค</p>
       </section>
+      <label for="from">วันที่เริ่มต้น</label><div class="date-field"><input id="from" type="date"><button type="button" id="setMonthStart" aria-label="เลือกวันจันทร์แรกของเดือน" title="วันจันทร์แรกของเดือน">↶</button></div>
+      <label for="to">วันที่สิ้นสุด</label><div class="date-field"><input id="to" type="date"><button type="button" id="setToday" aria-label="เลือกวันที่ปัจจุบัน" title="วันที่ปัจจุบัน">↶</button></div>
+      <div class="date-quick-actions" role="group" aria-label="เลือกช่วงวันที่ด่วน"><button type="button" id="today" class="link">วันนี้</button><button type="button" id="week" class="link">รายสัปดาห์</button></div>
+
       <button type="button" id="export" class="primary wide">ดาวน์โหลด Excel (.xlsx)</button>
       <button type="button" id="exportPdf" class="secondary wide">พิมพ์ / บันทึก PDF</button>
       <h2>02 · ประวัติการขาย</h2>
