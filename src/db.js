@@ -4,10 +4,10 @@
   function open() {
     if (databasePromise) return databasePromise;
     databasePromise = new Promise(function (resolve, reject) {
-      var request = indexedDB.open('maxone-sales-record', 2);
+      var request = indexedDB.open('maxone-sales-record', 3);
       request.onupgradeneeded = function (event) {
         var db = event.target.result;
-        ['shops', 'records', 'audit', 'syncQueue'].forEach(function (name) {
+        ['shops', 'records', 'audit', 'syncQueue', 'reportTeams'].forEach(function (name) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' });
         });
       };
