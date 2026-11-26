@@ -861,7 +861,6 @@
     $('search').oninput = history;
     $('today').onclick = suggestToday;
     $('week').onclick = suggestWeek;
-    $('monthStart').onclick = suggestMonthStart;
     $('setMonthStart').onclick = suggestMonthStart;
     $('setToday').onclick = function(){ $('to').value=iso(); };
     $('reportTeam').onchange = function(){selectedReportTeamId=$('reportTeam').value;window.localStorage.setItem('maxone-report-team-id',selectedReportTeamId);renderSelectedMembers();};
