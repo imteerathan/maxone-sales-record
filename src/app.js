@@ -77,7 +77,7 @@
       reportTeams = data[2] || [];
       if (!reportTeams.length) {
         var seedTeam = { id: uuid(), name: 'หมอก', members: ['หมอก','อาม','กุ๊กไก่','อาชิ'], createdAt: Date.now(), updatedAt: Date.now() };
-        return MDB.write('reportTeams', seedTeam).then(function () { reportTeams = [seedTeam]; populateReportTeams(); });
+        return MDB.write('reportTeams', seedTeam).then(function () { return refresh(); });
       }
       populateReportTeams();
       var select = $('shop');
