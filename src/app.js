@@ -4,6 +4,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var shops = [];
   var records = [];
+  var reportTeams = [];
+  var selectedReportTeamId = '';
   var editId = null;
   var allMode = false;
   var session = null;
@@ -69,9 +71,15 @@
     return parsed;
   }
   function refresh() {
-    return Promise.all([MDB.all('shops'), MDB.all('records')]).then(function (data) {
+    return Promise.all([MDB.all('shops'), MDB.all('records'), MDB.all('reportTeams')]).then(function (data) {
       shops = data[0];
       records = data[1];
+      reportTeams = data[2] || [];
+      if (!reportTeams.length) {
+        var seedTeam = { id: uuid(), name: 'หมอก', members: ['หมอก','อาม','กุ๊กไก่','อาชิ'], createdAt: Date.now(), updatedAt: Date.now() };
+        return MDB.write('reportTeams', seedTeam).then(function () { reportTeams = [seedTeam]; populateReportTeams(); });
+      }
+      populateReportTeams();
       var select = $('shop');
       var selected = select.value;
       select.innerHTML = '<option value="">เลือกร้านค้า</option>';
@@ -81,6 +89,97 @@
       if (selected) select.value = selected;
       history();
     });
+  }
+  function selectedReportTeam() {
+    return reportTeams.filter(function (team) { return team.id === selectedReportTeamId; })[0] || reportTeams[0] || null;
+  }
+  function populateReportTeams() {
+    var select = $('reportTeam');
+    if (!select) return;
+    var previous = selectedReportTeamId || window.localStorage.getItem('maxone-report-team-id') || select.value;
+    select.innerHTML = '<option value="">เลือกหน่วย</option>';
+    reportTeams.slice().sort(function(a,b){return a.name.localeCompare(b.name,'th');}).forEach(function(team){select.add(new Option(team.name,team.id));});
+    selectedReportTeamId = reportTeams.some(function(team){return team.id===previous;}) ? previous : (reportTeams[0] ? reportTeams[0].id : '');
+    select.value = selectedReportTeamId;
+    if (selectedReportTeamId) window.localStorage.setItem('maxone-report-team-id',selectedReportTeamId);
+    renderSelectedMembers();
+  }
+  function persistReportTeams() {
+    return MDB.write('reportTeams', reportTeams).then(function(){populateReportTeams();});
+  }
+  function renderSelectedMembers() {
+    var team = selectedReportTeam();
+    if (!$('selectedMembers')) return;
+    var members = team ? team.members || [] : [];
+    $('selectedMembers').innerHTML = members.length ? members.map(function(name,index){
+      return '<button type="button" class="member-tag" data-member-remove="'+index+'" title="นำสมาชิกออก">'+escapeHtml(name)+' <span>×</span></button>';
+    }).join('') : '<span class="hint">ยังไม่ได้เลือกสมาชิก</span>';
+    renderMemberSuggestions();
+  }
+  function renderMemberSuggestions() {
+    if (!$('memberSuggestions')) return;
+    var team=selectedReportTeam(), query=$('memberSearch').value.trim().toLowerCase();
+    var members=team ? team.members || [] : [];
+    var matches=members.filter(function(name){return query && name.toLowerCase().indexOf(query)>=0;});
+    $('memberSuggestions').innerHTML=matches.map(function(name){return '<button type="button" class="member-suggestion" data-member-pick="'+escapeHtml(name)+'">'+escapeHtml(name)+' เพิ่ม</button>';}).join('');
+    $('memberSuggestions').classList.toggle('hidden',!matches.length);
+  }
+  function openReportTeamEditor() {
+    $('reportTeamEditor').classList.remove('hidden'); $('reportTeamSearch').value='';
+    $('reportTeamName').value=''; $('reportTeamEditId').value='';
+    $('reportTeamMessage').textContent='เพิ่มหน่วยใหม่หรือเลือกหน่วยเพื่อแก้ไข'; renderReportTeamChoices();
+  }
+  function renderReportTeamChoices() {
+    var q=$('reportTeamSearch').value.trim().toLowerCase();
+    var matches=reportTeams.filter(function(t){return t.name.toLowerCase().indexOf(q)>=0;});
+    $('reportTeamChoices').innerHTML=matches.map(function(t){
+      return '<div class="shop-choice-row"><button type="button" class="shop-choice-delete" data-team-delete="'+escapeHtml(t.id)+'">ลบ</button><button type="button" class="shop-choice-select" data-team-edit="'+escapeHtml(t.id)+'"><span>'+escapeHtml(t.name)+'</span><small>เลือกแก้ไข</small></button></div>';
+    }).join('') || '<div class="empty">ไม่พบหน่วย</div>';
+  }
+  function saveReportTeam() {
+    var name=$('reportTeamName').value.trim(), id=$('reportTeamEditId').value;
+    if(!name){$('reportTeamMessage').textContent='กรุณากรอกชื่อหน่วย';return;}
+    if(reportTeams.some(function(t){return t.id!==id && t.name.toLowerCase()===name.toLowerCase();})){$('reportTeamMessage').textContent='มีชื่อหน่วยนี้แล้ว';return;}
+    var existing=reportTeams.filter(function(t){return t.id===id;})[0], now=Date.now();
+    var team=existing?Object.assign({},existing,{name:name,updatedAt:now}):{id:uuid(),name:name,members:[],createdAt:now,updatedAt:now};
+    if(existing) reportTeams=reportTeams.map(function(t){return t.id===id?team:t;}); else reportTeams.push(team);
+    persistReportTeams().then(function(){selectedReportTeamId=team.id;populateReportTeams();$('reportTeamEditor').classList.add('hidden');setStatus('● บันทึกหน่วยแล้ว',false);}).catch(showError);
+  }
+  function deleteReportTeam(id) {
+    var team=reportTeams.filter(function(t){return t.id===id;})[0]; if(!team)return;
+    if(reportTeams.length===1){$('reportTeamMessage').textContent='ต้องมีอย่างน้อย 1 หน่วย ไม่สามารถลบหน่วยสุดท้ายได้';return;}
+    if(!window.confirm('ยืนยันลบหน่วย "'+team.name+'"?'))return;
+    reportTeams=reportTeams.filter(function(t){return t.id!==id;});
+    persistReportTeams().then(function(){setStatus('● ลบหน่วยแล้ว',false);renderReportTeamChoices();}).catch(showError);
+  }
+  function openMemberEditor() {
+    $('memberEditor').classList.remove('hidden'); $('memberName').value=''; $('memberEditName').value='';
+    $('memberEditorMessage').textContent='เพิ่มสมาชิกใหม่ หรือเลือกชื่อด้านล่างเพื่อแก้ไข/ลบ'; renderMemberChoices();
+  }
+  function renderMemberChoices() {
+    var team=selectedReportTeam(), members=team?team.members||[]:[];
+    $('memberChoices').innerHTML=members.map(function(name){return '<div class="shop-choice-row"><button type="button" class="shop-choice-delete" data-member-delete="'+escapeHtml(name)+'">ลบ</button><button type="button" class="shop-choice-select" data-member-edit="'+escapeHtml(name)+'"><span>'+escapeHtml(name)+'</span><small>แก้ไข</small></button></div>';}).join('') || '<div class="empty">ยังไม่มีสมาชิก</div>';
+  }
+  function saveMember() {
+    var team=selectedReportTeam(), name=$('memberName').value.trim(), old=$('memberEditName').value;
+    if(!team){$('memberEditorMessage').textContent='กรุณาเลือกหน่วยก่อน';return;}
+    if(!name){$('memberEditorMessage').textContent='กรุณากรอกชื่อสมาชิก';return;}
+    if((team.members||[]).some(function(n){return n!==old&&n.toLowerCase()===name.toLowerCase();})){$('memberEditorMessage').textContent='มีสมาชิกชื่อนี้แล้ว';return;}
+    team.members=(team.members||[]).map(function(n){return n===old?name:n;});
+    if(!old)team.members.push(name);
+    team.updatedAt=Date.now();
+    persistReportTeams().then(function(){renderMemberChoices();$('memberName').value='';$('memberEditName').value='';$('memberEditorMessage').textContent='บันทึกสมาชิกแล้ว';setStatus('● บันทึกสมาชิกแล้ว',false);}).catch(showError);
+  }
+  function deleteMember(name) {
+    var team=selectedReportTeam(); if(!team)return;
+    if(!window.confirm('ยืนยันลบสมาชิก "'+name+'" ?'))return;
+    team.members=(team.members||[]).filter(function(n){return n!==name;});team.updatedAt=Date.now();
+    persistReportTeams().then(function(){renderMemberChoices();setStatus('● ลบสมาชิกแล้ว',false);}).catch(showError);
+  }
+  function addMemberTag(name) {
+    var team=selectedReportTeam(); if(!team)return;
+    if((team.members||[]).indexOf(name)<0)team.members.push(name);
+    team.updatedAt=Date.now();persistReportTeams().then(function(){$('memberSearch').value='';renderSelectedMembers();});
   }
   function previousClosingForDate(date) {
     var previous = records.filter(function (record) { return record.id !== editId && record.date < date; })
@@ -296,6 +395,12 @@
   function formatLocalDate(value) {
     return value.getFullYear() + '-' + ('0' + (value.getMonth() + 1)).slice(-2) + '-' + ('0' + value.getDate()).slice(-2);
   }
+  function suggestMonthStart() {
+    var now=new Date(), first=new Date(now.getFullYear(),now.getMonth(),1);
+    var offset=(8-first.getDay())%7;
+    first.setDate(first.getDate()+offset);
+    $('from').value=formatLocalDate(first);
+  }
   function suggestToday() {
     var today = formatLocalDate(new Date());
     $('from').value = today;
@@ -342,9 +447,12 @@
     if (!report) return;
     if (!window.XLSX) { window.alert('ยังไม่มีไลบรารี Excel กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่'); return; }
     var rows = report.rows;
+    var team = selectedReportTeam();
+    var teamTitle = 'แบบฟอร์มสรุปยอดขาย หน่วย' + (team ? team.name : '') + ' เขตกทม.';
+    var memberLine = 'ทีม: ' + (team && team.members ? team.members.join(', ') : '');
     var aoa = [
-      ['แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.'],
-      ['ทีม: หมอก, อาม,กุ๊กไก่, อาชิ'],
+      [teamTitle],
+      [memberLine],
       ['วัน-เดือน-ปี','ชื่อร้าน/จังหวัด','Stock ตั้งต้น','','','สต๊อกคงเหลือ','','','วันหมดอายุ','ยอดขาย','',''],
       ['','','ลัง','แพ็ค','ขวด','ลัง','แพ็ค','ขวด','','ลัง','แพ็ค','ขวด']
     ];
@@ -405,6 +513,9 @@
       return;
     }
     var rows = report.rows;
+    var team = selectedReportTeam();
+    var teamTitle = 'แบบฟอร์มสรุปยอดขาย หน่วย' + (team ? team.name : '') + ' เขตกทม.';
+    var memberLine = 'ทีม: ' + (team && team.members ? team.members.join(', ') : '');
     var body = rows.map(function(r) {
       var cells = [thaiDate(r.date),shopName(r.shopId),reportCell(r.opening_cases),reportCell(r.opening_packs),reportCell(r.opening_loose_bottles),
         reportCell(r.closing_cases),reportCell(r.closing_packs),reportCell(r.closing_loose_bottles),thaiDate(r.expiryDate),
@@ -425,7 +536,7 @@
       '.maxone-pdf thead tr{height:36px}.maxone-pdf thead th{background:#073763;color:#fff;font-size:14px;font-weight:700}.maxone-pdf thead tr.sub th{background:#4a86e8;color:#fff;font-size:13px}'+
       '.maxone-pdf td:nth-child(2){text-align:left;padding-left:6px}.maxone-pdf tfoot td{height:42px;font-weight:bold;font-size:14px}.maxone-pdf tfoot td:first-child{text-align:right}'+
       '.maxone-pdf col.a{width:9%}.maxone-pdf col.b{width:22%}.maxone-pdf col.c,.maxone-pdf col.d,.maxone-pdf col.e,.maxone-pdf col.f,.maxone-pdf col.g,.maxone-pdf col.h,.maxone-pdf col.j,.maxone-pdf col.k,.maxone-pdf col.l{width:6%}.maxone-pdf col.i{width:9%}'+
-      '</style><div class="maxone-pdf"><h1>แบบฟอร์มสรุปยอดขาย หน่วยหมอก เขตกทม.</h1><h2>ทีม: หมอก, อาม,กุ๊กไก่, อาชิ</h2>'+
+      '</style><div class="maxone-pdf"><h1>'+escapeHtml(teamTitle)+'</h1><h2>'+escapeHtml(memberLine)+'</h2>'+
       '<table><colgroup><col class="a"><col class="b"><col class="c"><col class="d"><col class="e"><col class="f"><col class="g"><col class="h"><col class="i"><col class="j"><col class="k"><col class="l"></colgroup>'+
       '<thead><tr><th rowspan="2">วัน-เดือน-ปี</th><th rowspan="2">ชื่อร้าน/จังหวัด</th><th colspan="3">Stock ตั้งต้น</th><th colspan="3">สต๊อกคงเหลือ</th><th rowspan="2">วันหมดอายุ</th><th colspan="3">ยอดขาย</th></tr>'+
       '<tr class="sub"><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th><th>ลัง</th><th>แพ็ค</th><th>ขวด</th></tr></thead><tbody>'+body+'</tbody>'+
@@ -750,6 +861,26 @@
     $('search').oninput = history;
     $('today').onclick = suggestToday;
     $('week').onclick = suggestWeek;
+    $('monthStart').onclick = suggestMonthStart;
+    $('setMonthStart').onclick = suggestMonthStart;
+    $('setToday').onclick = function(){ $('to').value=iso(); };
+    $('reportTeam').onchange = function(){selectedReportTeamId=$('reportTeam').value;window.localStorage.setItem('maxone-report-team-id',selectedReportTeamId);renderSelectedMembers();};
+    $('addReportTeam').onclick = openReportTeamEditor;
+    $('editReportTeam').onclick = openReportTeamEditor;
+    $('closeReportTeamEditor').onclick = function(){$('reportTeamEditor').classList.add('hidden');};
+    $('reportTeamSearch').oninput = renderReportTeamChoices;
+    $('reportTeamChoices').onclick = function(e){var t=e.target.closest('button');if(!t)return;if(t.dataset.teamDelete)deleteReportTeam(t.dataset.teamDelete);if(t.dataset.teamEdit){var team=reportTeams.filter(function(x){return x.id===t.dataset.teamEdit;})[0];if(team){$('reportTeamEditId').value=team.id;$('reportTeamName').value=team.name;$('reportTeamMessage').textContent='แก้ไขชื่อหน่วยแล้วกดบันทึก';}}};
+    $('saveReportTeam').onclick = saveReportTeam;
+    $('closeMemberEditor').onclick = function(){$('memberEditor').classList.add('hidden');};
+    $('manageMembers').onclick = openMemberEditor;
+    $('addMember').onclick = function(){var n=$('memberSearch').value.trim();if(n)addMemberTag(n);else openMemberEditor();};
+    $('memberSearch').oninput = renderMemberSuggestions;
+    $('memberSuggestions').onclick = function(e){var t=e.target.closest('button');if(t&&t.dataset.memberPick)addMemberTag(t.dataset.memberPick);};
+    $('selectedMembers').onclick = function(e){var t=e.target.closest('button');if(!t||t.dataset.memberRemove==null)return;var team=selectedReportTeam();if(team){team.members.splice(Number(t.dataset.memberRemove),1);team.updatedAt=Date.now();persistReportTeams();}};
+    $('memberChoices').onclick = function(e){var t=e.target.closest('button');if(!t)return;if(t.dataset.memberEdit){$('memberEditName').value=t.dataset.memberEdit;$('memberName').value=t.dataset.memberEdit;$('memberEditorMessage').textContent='แก้ไขชื่อสมาชิกแล้วกดบันทึก';$('saveMember').textContent='บันทึกการแก้ไข';}if(t.dataset.memberDelete)deleteMember(t.dataset.memberDelete);};
+    $('saveMember').onclick = saveMember;
+    $('reportTeamEditor').onclick = function(e){if(e.target===$('reportTeamEditor'))$('reportTeamEditor').classList.add('hidden');};
+    $('memberEditor').onclick = function(e){if(e.target===$('memberEditor'))$('memberEditor').classList.add('hidden');};
     $('export').onclick = exportExcel;
     $('exportPdf').onclick = exportPdf;
     $('accountButton').onclick = openAuth;
